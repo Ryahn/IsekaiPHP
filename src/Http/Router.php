@@ -110,17 +110,33 @@ class Router
     {
         $method = $request->getMethod();
         $uri = $request->getPathInfo();
+        
+        // Normalize URI (remove trailing slash except for root)
+        $normalizedUri = $uri !== '/' ? rtrim($uri, '/') : $uri;
 
-        // Try to find exact match first
+        // Try to find exact match first (with and without trailing slash)
         if (isset($this->routes[$method][$uri])) {
             $route = $this->routes[$method][$uri];
+            return $this->runRoute($route, $request);
+        }
+        
+        // Try normalized version
+        if (isset($this->routes[$method][$normalizedUri])) {
+            $route = $this->routes[$method][$normalizedUri];
+            return $this->runRoute($route, $request);
+        }
+        
+        // Try with trailing slash
+        $uriWithSlash = $normalizedUri . '/';
+        if (isset($this->routes[$method][$uriWithSlash])) {
+            $route = $this->routes[$method][$uriWithSlash];
             return $this->runRoute($route, $request);
         }
 
         // Try to match with parameters
         foreach ($this->routes[$method] ?? [] as $route) {
             $params = [];
-            if ($route->matches($uri, $params)) {
+            if ($route->matches($uri, $params) || $route->matches($normalizedUri, $params)) {
                 $request->attributes->add($params);
                 return $this->runRoute($route, $request);
             }

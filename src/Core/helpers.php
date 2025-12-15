@@ -50,6 +50,31 @@ if (!function_exists('csrf_field')) {
 }
 
 /**
+ * Helper function to get the current request instance
+ */
+if (!function_exists('request')) {
+    function request(?string $key = null, $default = null)
+    {
+        static $request = null;
+        
+        if ($request === null) {
+            if (isset($GLOBALS['app'])) {
+                $request = \IsekaiPHP\Http\Request::createFromGlobals();
+            } else {
+                // Fallback to creating from globals directly
+                $request = \IsekaiPHP\Http\Request::createFromGlobals();
+            }
+        }
+        
+        if ($key === null) {
+            return $request;
+        }
+        
+        return $request->input($key, $default);
+    }
+}
+
+/**
  * Helper function to get current date/time (Carbon instance)
  */
 if (!function_exists('now')) {
@@ -96,6 +121,12 @@ if (!function_exists('vite')) {
             $manifest = json_decode(file_get_contents($manifestPath), true);
             $html = '';
             
+            // Load jQuery first if it exists in public directory
+            $jqueryPath = base_path('public/assets/js/jquery-3.7.1.min.js');
+            if (file_exists($jqueryPath)) {
+                $html .= '<script src="/assets/js/jquery-3.7.1.min.js"></script>' . "\n    ";
+            }
+            
             if (isset($manifest[$entry])) {
                 $asset = $manifest[$entry];
                 
@@ -115,7 +146,15 @@ if (!function_exists('vite')) {
             return $html;
         } else {
             // Development: use Vite dev server
-            return '<script type="module" src="http://localhost:5173/@vite/client"></script>' . "\n    " .
+            // Load jQuery first if it exists in public directory
+            $jqueryPath = base_path('public/assets/js/jquery-3.7.1.min.js');
+            $jqueryScript = '';
+            if (file_exists($jqueryPath)) {
+                $jqueryScript = '<script src="/assets/js/jquery-3.7.1.min.js"></script>' . "\n    ";
+            }
+            
+            return $jqueryScript .
+                   '<script type="module" src="http://localhost:5173/@vite/client"></script>' . "\n    " .
                    '<script type="module" src="http://localhost:5173/' . htmlspecialchars($entry) . '"></script>' . "\n    ";
         }
     }

@@ -9,7 +9,7 @@ services:
       - ./storage:/var/www/html/storage
     networks:
       # - traefik
-      - r7torrents-network
+      - isekaiphp-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.isekaiphp-php.rule=Host(`isekaiphp.localhost`)"
@@ -28,7 +28,7 @@ services:
       - "8282:80"
     networks:
       # - traefik
-      - r7torrents-network
+      - isekaiphp-network
     depends_on:
       - php
     labels:
@@ -42,20 +42,20 @@ services:
     container_name: isekaiphp-db
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: torrent_db
-      MYSQL_USER: torrent_user
-      MYSQL_PASSWORD: torrent_pass
+      MYSQL_DATABASE: isekaiphp
+      MYSQL_USER: isekaiphp
+      MYSQL_PASSWORD: isekaiphp
     volumes:
       - db_data:/var/lib/mysql
     networks:
-      - r7torrents-network
+      - isekaiphp-network
     ports:
-      - "3406:3306"
+      - "3706:3306"
 
 networks:
   # traefik:
   #   external: true
-  r7torrents-network:
+  isekaiphp-network:
     driver: bridge
 
 volumes:

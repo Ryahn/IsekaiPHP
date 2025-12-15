@@ -543,5 +543,163 @@ class ModuleManager
             // Route-specific middleware is handled in route files
         }
     }
+
+    /**
+     * Enable a module
+     *
+     * @param string $moduleName
+     * @return bool
+     */
+    public function enableModule(string $moduleName): bool
+    {
+        $config = Config::get('modules', []);
+        $disabled = $config['disabled'] ?? [];
+        
+        // Remove from disabled list
+        $disabled = array_filter($disabled, function ($name) use ($moduleName) {
+            return $name !== $moduleName;
+        });
+        
+        $config['disabled'] = array_values($disabled);
+        return $this->saveModuleConfig($config);
+    }
+
+    /**
+     * Disable a module
+     *
+     * @param string $moduleName
+     * @return bool
+     */
+    public function disableModule(string $moduleName): bool
+    {
+        $config = Config::get('modules', []);
+        $disabled = $config['disabled'] ?? [];
+        
+        // Add to disabled list if not already there
+        if (!in_array($moduleName, $disabled)) {
+            $disabled[] = $moduleName;
+        }
+        
+        $config['disabled'] = $disabled;
+        return $this->saveModuleConfig($config);
+    }
+
+    /**
+     * Disable all modules
+     *
+     * @return bool
+     */
+    public function disableAllModules(): bool
+    {
+        $config = Config::get('modules', []);
+        $allModules = array_keys($this->loadedModules);
+        
+        $config['disabled'] = $allModules;
+        return $this->saveModuleConfig($config);
+    }
+
+    /**
+     * Get module status (enabled/disabled)
+     *
+     * @param string $moduleName
+     * @return bool
+     */
+    public function getModuleStatus(string $moduleName): bool
+    {
+        return $this->isModuleEnabled($moduleName);
+    }
+
+    /**
+     * Save module configuration to file
+     *
+     * @param array|null $config
+     * @return bool
+     */
+    public function saveModuleConfig(?array $config = null): bool
+    {
+        if ($config === null) {
+            $config = Config::get('modules', []);
+        }
+
+        $configPath = $this->basePath . '/config/modules.php';
+        
+        // Update Config
+        Config::set('modules', $config);
+        
+        // Write to file
+        $content = "<?php\n\nreturn " . var_export($config, true) . ";\n";
+        
+        return file_put_contents($configPath, $content) !== false;
+    }
+
+    /**
+     * Register admin routes and collect admin menu items from modules
+     *
+     * @param Router $router
+     * @return void
+     */
+    public function registerAdminRoutes(Router $router): void
+    {
+        foreach ($this->loadedModules as $module) {
+            if (!$module->isEnabled()) {
+                continue;
+            }
+
+            // Collect admin menu items
+            $menuItems = $module->getAdminMenuItems();
+            if (!empty($menuItems)) {
+                AdminMenuRegistry::registerMenuItems($menuItems);
+            }
+
+            // Register admin routes
+            $module->registerAdminRoutes($this->container, $router);
+        }
+    }
+
+    /**
+     * Get all discovered modules (including disabled ones)
+     *
+     * @return array
+     */
+    public function getAllModules(): array
+    {
+        $modulesPath = $this->basePath . '/modules';
+        $modules = [];
+        
+        if (!is_dir($modulesPath)) {
+            return $modules;
+        }
+
+        $directories = array_filter(glob($modulesPath . '/*'), 'is_dir');
+        
+        foreach ($directories as $modulePath) {
+            $moduleJsonPath = $modulePath . '/module.json';
+            
+            if (!file_exists($moduleJsonPath)) {
+                continue;
+            }
+
+            $manifest = json_decode(file_get_contents($moduleJsonPath), true);
+            
+            if (!$manifest || !isset($manifest['name'])) {
+                continue;
+            }
+
+            $moduleName = $manifest['name'];
+            $enabled = $this->isModuleEnabled($moduleName);
+            
+            $modules[$moduleName] = [
+                'name' => $moduleName,
+                'display_name' => $manifest['display_name'] ?? $moduleName,
+                'version' => $manifest['version'] ?? '1.0.0',
+                'description' => $manifest['description'] ?? '',
+                'enabled' => $enabled,
+                'path' => $modulePath,
+                'manifest' => $manifest,
+            ];
+        }
+
+        return $modules;
+    }
 }
 

@@ -178,5 +178,44 @@ abstract class Module
     {
         return $this->manifest['extra']['module']['service_provider'] ?? null;
     }
+
+    /**
+     * Get admin menu items for this module
+     * 
+     * Override this method in your module to register admin menu items.
+     * 
+     * @return array Array of menu items with keys: label, url, icon (optional), order (optional), children (optional), permission (optional)
+     */
+    public function getAdminMenuItems(): array
+    {
+        return [];
+    }
+
+    /**
+     * Get admin settings pages for this module
+     * 
+     * Override this method in your module to register admin settings pages.
+     * 
+     * @return array Array of settings page definitions
+     */
+    public function getAdminSettingsPages(): array
+    {
+        return [];
+    }
+
+    /**
+     * Register admin routes for this module
+     * 
+     * Override this method in your module to register admin-specific routes.
+     * The router passed here will be scoped to the admin area.
+     * 
+     * @param Container $container
+     * @param Router $router
+     * @return void
+     */
+    public function registerAdminRoutes(Container $container, Router $router): void
+    {
+        // Override in child classes
+    }
 }
 

@@ -1,0 +1,17 @@
+<?php
+
+namespace Database\Seeds;
+
+class {{CLASS_NAME}}
+{
+    /**
+     * Run the database seeds.
+     *
+     * @return void
+     */
+    public function run(): void
+    {
+        //
+    }
+}
+
