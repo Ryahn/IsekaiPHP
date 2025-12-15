@@ -9,6 +9,7 @@ class Router
     protected Container $container;
     protected array $routes = [];
     protected array $middleware = [];
+    protected array $globalMiddleware = [];
     protected array $groupMiddleware = [];
     protected string $prefix = '';
 
@@ -130,12 +131,20 @@ class Router
     }
 
     /**
+     * Register global middleware
+     */
+    public function middleware(string $middleware): void
+    {
+        $this->globalMiddleware[] = $middleware;
+    }
+
+    /**
      * Run a route
      */
     protected function runRoute(Route $route, Request $request): Response
     {
-        // Merge group middleware
-        $middleware = array_merge($this->groupMiddleware, $route->getMiddleware());
+        // Merge global, group, and route middleware
+        $middleware = array_merge($this->globalMiddleware, $this->groupMiddleware, $route->getMiddleware());
 
         // If no middleware, run action directly
         if (empty($middleware)) {

@@ -41,6 +41,19 @@ if ($argc < 2) {
     echo "    Options: -c (controller), -m (migration), --controller=NAME, --migration=NAME\n";
     echo "  make:middleware <name>          - Create a new middleware class\n";
     echo "  make:migration <name>           - Create a new migration file\n";
+    echo "  make:request <name>             - Create a new form request class\n";
+    echo "  make:event <name>               - Create a new event class\n";
+    echo "  make:listener <name> [--event=] - Create a new event listener class\n\n";
+    echo "  module:make <name>              - Create a new module\n";
+    echo "  module:list                     - List all modules\n";
+    echo "  module:enable <name>             - Enable a module\n";
+    echo "  module:disable <name>            - Disable a module\n";
+    echo "  module:install <name>           - Install module's Composer dependencies\n";
+    echo "  module:install-all               - Install dependencies for all modules\n";
+    echo "  module:publish <name> [--force]  - Publish module assets to public directory\n";
+    echo "  module:publish-all [--force]     - Publish assets for all modules\n\n";
+    echo "  cache:clear                     - Clear application cache\n";
+    echo "  route:list                      - List all registered routes\n";
     exit(1);
 }
 
@@ -94,8 +107,23 @@ if ($command === 'key:generate') {
         });
     }
     
-    // Get all migration files (sorted alphabetically - numeric prefixes ensure correct order)
+    // Get all migration files from main migrations directory
     $migrationFiles = glob($migrationsPath . '/*.php');
+    
+    // Get migration files from modules
+    $modulesPath = __DIR__ . '/modules';
+    if (is_dir($modulesPath)) {
+        $moduleDirs = array_filter(glob($modulesPath . '/*'), 'is_dir');
+        foreach ($moduleDirs as $modulePath) {
+            $moduleMigrationsPath = $modulePath . '/migrations';
+            if (is_dir($moduleMigrationsPath)) {
+                $moduleMigrations = glob($moduleMigrationsPath . '/*.php');
+                $migrationFiles = array_merge($migrationFiles, $moduleMigrations);
+            }
+        }
+    }
+    
+    // Sort all migration files (numeric prefixes ensure correct order)
     sort($migrationFiles);
     
     if (empty($migrationFiles)) {
@@ -666,6 +694,385 @@ if ($command === 'key:generate') {
     );
     
     passthru($command);
+} elseif (strpos($command, 'module:') === 0) {
+    // Module command handler
+    bootstrapApp();
+    
+    $parts = explode(':', $command);
+    $moduleCommand = $parts[1] ?? null;
+    
+    if ($moduleCommand === 'make') {
+        if (!isset($argv[2])) {
+            echo "Error: Module name is required\n";
+            echo "Usage: php isekai module:make <name>\n";
+            exit(1);
+        }
+        
+        $moduleName = $argv[2];
+        $modulesPath = __DIR__ . '/modules';
+        $modulePath = $modulesPath . '/' . $moduleName;
+        
+        if (is_dir($modulePath)) {
+            echo "Error: Module {$moduleName} already exists.\n";
+            exit(1);
+        }
+        
+        // Create module directory structure
+        mkdir($modulePath, 0755, true);
+        mkdir($modulePath . '/routes', 0755, true);
+        mkdir($modulePath . '/views', 0755, true);
+        mkdir($modulePath . '/migrations', 0755, true);
+        mkdir($modulePath . '/config', 0755, true);
+        mkdir($modulePath . '/assets/css', 0755, true);
+        mkdir($modulePath . '/assets/js', 0755, true);
+        mkdir($modulePath . '/src', 0755, true);
+        
+        // Convert module name to class name
+        $toClassName = function($name) {
+            return str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
+        };
+        
+        $className = $toClassName($moduleName);
+        $namespace = $className;
+        
+        // Create module.json
+        $moduleJson = [
+            'name' => $moduleName,
+            'display_name' => $className . ' Module',
+            'version' => '1.0.0',
+            'description' => "A module for IsekaiPHP",
+            'author' => '',
+            'license' => 'MIT',
+            'requires' => [
+                'modules' => []
+            ],
+            'extensions' => [
+                'mail_drivers' => [],
+                'cache_drivers' => [],
+                'storage_drivers' => []
+            ],
+            'extra' => [
+                'module' => [
+                    'namespace' => $namespace,
+                    'class' => $namespace . '\\Module',
+                    'service_provider' => $namespace . '\\ServiceProvider'
+                ]
+            ]
+        ];
+        
+        file_put_contents($modulePath . '/module.json', json_encode($moduleJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        
+        // Create composer.json
+        $composerJson = [
+            'name' => strtolower($moduleName) . '/' . strtolower($moduleName),
+            'description' => "A module for IsekaiPHP",
+            'type' => 'isekaiphp-module',
+            'require' => [
+                'php' => '^8.4',
+                'isekaiphp/framework' => 'dev-main'
+            ],
+            'repositories' => [
+                [
+                    'type' => 'vcs',
+                    'url' => 'https://github.com/Ryahn/IsekaiPHP'
+                ]
+            ],
+            'minimum-stability' => 'dev',
+            'prefer-stable' => true,
+            'autoload' => [
+                'psr-4' => [
+                    $namespace . '\\' => 'src/'
+                ]
+            ]
+        ];
+        
+        file_put_contents($modulePath . '/composer.json', json_encode($composerJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        
+        // Create Module.php in src directory
+        $moduleStub = "<?php\n\nnamespace {$namespace};\n\nuse IsekaiPHP\\Core\\Module as BaseModule;\nuse IsekaiPHP\\Core\\Container;\n\nclass Module extends BaseModule\n{\n    /**\n     * Register the module\n     */\n    public function register(Container \$container): void\n    {\n        // Register services here\n    }\n\n    /**\n     * Boot the module\n     */\n    public function boot(Container \$container): void\n    {\n        // Boot services here\n    }\n}\n";
+        file_put_contents($modulePath . '/src/Module.php', $moduleStub);
+        
+        // Create ServiceProvider.php in src directory
+        $serviceProviderStub = "<?php\n\nnamespace {$namespace};\n\nuse IsekaiPHP\\Core\\ServiceProvider as BaseServiceProvider;\nuse IsekaiPHP\\Core\\Container;\n\nclass ServiceProvider implements BaseServiceProvider\n{\n    /**\n     * Register services\n     */\n    public function register(Container \$container): void\n    {\n        // Bind services here\n    }\n\n    /**\n     * Boot services\n     */\n    public function boot(Container \$container): void\n    {\n        // Boot services here\n    }\n}\n";
+        file_put_contents($modulePath . '/src/ServiceProvider.php', $serviceProviderStub);
+        
+        // Create route files
+        $webRoutesStub = "<?php\n\n/** @var \\IsekaiPHP\\Http\\Router \$router */\n\$router = \$GLOBALS['app']->getRouter();\n\n// Add your routes here\n";
+        file_put_contents($modulePath . '/routes/web.php', $webRoutesStub);
+        
+        $apiRoutesStub = "<?php\n\n/** @var \\IsekaiPHP\\Http\\Router \$router */\n\$router = \$GLOBALS['app']->getRouter();\n\n// Add your API routes here\n";
+        file_put_contents($modulePath . '/routes/api.php', $apiRoutesStub);
+        
+        // Create README.md
+        // Create sample config file
+        $configStub = "<?php\n\nreturn [\n    // Module configuration\n    'enabled' => true,\n];\n";
+        file_put_contents($modulePath . '/config/module.php', $configStub);
+        
+        // Create README.md
+        $readmeStub = "# {$className} Module\n\nA module for IsekaiPHP.\n\n## Installation\n\nRun `composer install` in this directory to install dependencies.\n\n## Configuration\n\nEdit `config/module.php` to configure the module.\n\n## Usage\n\nAdd your module functionality here.\n\n## Module Structure\n\n- `Module.php` - Main module class\n- `ServiceProvider.php` - Service provider for dependency injection\n- `routes/` - Route definitions\n- `views/` - Blade templates\n- `migrations/` - Database migrations\n- `config/` - Configuration files\n- `assets/` - CSS, JS, and other assets\n";
+        file_put_contents($modulePath . '/README.md', $readmeStub);
+        
+        echo "✓ Module created: {$modulePath}\n";
+        echo "  Run 'composer install' in the module directory to install dependencies.\n";
+        echo "  Use 'php isekai module:publish {$moduleName}' to publish assets.\n";
+        
+    } elseif ($moduleCommand === 'list') {
+        $modulesPath = __DIR__ . '/modules';
+        
+        if (!is_dir($modulesPath)) {
+            echo "No modules directory found.\n";
+            exit(0);
+        }
+        
+        $directories = array_filter(glob($modulesPath . '/*'), 'is_dir');
+        
+        if (empty($directories)) {
+            echo "No modules found.\n";
+            exit(0);
+        }
+        
+        echo "Installed Modules:\n\n";
+        
+        foreach ($directories as $modulePath) {
+            $moduleJsonPath = $modulePath . '/module.json';
+            $moduleName = basename($modulePath);
+            
+            if (file_exists($moduleJsonPath)) {
+                $manifest = json_decode(file_get_contents($moduleJsonPath), true);
+                $displayName = $manifest['display_name'] ?? $moduleName;
+                $version = $manifest['version'] ?? 'N/A';
+                $description = $manifest['description'] ?? '';
+                $dependencies = $manifest['requires']['modules'] ?? [];
+                
+                $config = Config::get('modules', []);
+                $disabled = $config['disabled'] ?? [];
+                $status = in_array($moduleName, $disabled) ? 'Disabled' : 'Enabled';
+                
+                echo "  {$displayName} ({$moduleName})\n";
+                echo "    Version: {$version}\n";
+                echo "    Status: {$status}\n";
+                if ($description) {
+                    echo "    Description: {$description}\n";
+                }
+                if (!empty($dependencies)) {
+                    $depList = implode(', ', array_keys($dependencies));
+                    echo "    Dependencies: {$depList}\n";
+                }
+                echo "\n";
+            } else {
+                echo "  {$moduleName} (no module.json)\n\n";
+            }
+        }
+        
+    } elseif ($moduleCommand === 'enable') {
+        if (!isset($argv[2])) {
+            echo "Error: Module name is required\n";
+            echo "Usage: php isekai module:enable <name>\n";
+            exit(1);
+        }
+        
+        $moduleName = $argv[2];
+        $configPath = __DIR__ . '/config/modules.php';
+        $config = require $configPath;
+        
+        $disabled = $config['disabled'] ?? [];
+        $key = array_search($moduleName, $disabled);
+        
+        if ($key !== false) {
+            unset($disabled[$key]);
+            $config['disabled'] = array_values($disabled);
+            
+            $configContent = "<?php\n\nreturn " . var_export($config, true) . ";\n";
+            file_put_contents($configPath, $configContent);
+            
+            echo "✓ Module {$moduleName} enabled.\n";
+        } else {
+            echo "Module {$moduleName} is already enabled.\n";
+        }
+        
+    } elseif ($moduleCommand === 'disable') {
+        if (!isset($argv[2])) {
+            echo "Error: Module name is required\n";
+            echo "Usage: php isekai module:disable <name>\n";
+            exit(1);
+        }
+        
+        $moduleName = $argv[2];
+        $configPath = __DIR__ . '/config/modules.php';
+        $config = require $configPath;
+        
+        $disabled = $config['disabled'] ?? [];
+        
+        if (!in_array($moduleName, $disabled)) {
+            $disabled[] = $moduleName;
+            $config['disabled'] = $disabled;
+            
+            $configContent = "<?php\n\nreturn " . var_export($config, true) . ";\n";
+            file_put_contents($configPath, $configContent);
+            
+            echo "✓ Module {$moduleName} disabled.\n";
+        } else {
+            echo "Module {$moduleName} is already disabled.\n";
+        }
+        
+    } elseif ($moduleCommand === 'install') {
+        if (!isset($argv[2])) {
+            echo "Error: Module name is required\n";
+            echo "Usage: php isekai module:install <name>\n";
+            exit(1);
+        }
+        
+        $moduleName = $argv[2];
+        $modulePath = __DIR__ . '/modules/' . $moduleName;
+        
+        if (!is_dir($modulePath)) {
+            echo "Error: Module {$moduleName} not found.\n";
+            exit(1);
+        }
+        
+        $composerJsonPath = $modulePath . '/composer.json';
+        
+        if (!file_exists($composerJsonPath)) {
+            echo "Module {$moduleName} does not have a composer.json file.\n";
+            exit(0);
+        }
+        
+        echo "Installing dependencies for module {$moduleName}...\n";
+        
+        $command = sprintf(
+            'cd %s && composer install --no-interaction',
+            escapeshellarg($modulePath)
+        );
+        
+        passthru($command);
+        
+    } elseif ($moduleCommand === 'install-all') {
+        $modulesPath = __DIR__ . '/modules';
+        
+        if (!is_dir($modulesPath)) {
+            echo "No modules directory found.\n";
+            exit(0);
+        }
+        
+        $directories = array_filter(glob($modulesPath . '/*'), 'is_dir');
+        
+        if (empty($directories)) {
+            echo "No modules found.\n";
+            exit(0);
+        }
+        
+        foreach ($directories as $modulePath) {
+            $moduleName = basename($modulePath);
+            $composerJsonPath = $modulePath . '/composer.json';
+            
+            if (!file_exists($composerJsonPath)) {
+                continue;
+            }
+            
+            echo "Installing dependencies for module {$moduleName}...\n";
+            
+            $command = sprintf(
+                'cd %s && composer install --no-interaction',
+                escapeshellarg($modulePath)
+            );
+            
+            passthru($command);
+            echo "\n";
+        }
+        
+        echo "✓ All module dependencies installed.\n";
+        
+    } elseif ($moduleCommand === 'publish') {
+        if (!isset($argv[2])) {
+            echo "Error: Module name is required\n";
+            echo "Usage: php isekai module:publish <name> [--force]\n";
+            exit(1);
+        }
+        
+        $moduleName = $argv[2];
+        $force = isset($argv[3]) && $argv[3] === '--force';
+        
+        // Create application instance to get module manager
+        require_once __DIR__ . '/vendor/autoload.php';
+        require_once __DIR__ . '/src/Core/helpers.php';
+        $app = new \IsekaiPHP\Core\Application(__DIR__);
+        $moduleManager = $app->getModuleManager();
+        
+        if (!$moduleManager) {
+            echo "Error: Module manager not initialized.\n";
+            exit(1);
+        }
+        
+        if ($moduleManager->publishAssets($moduleName, $force)) {
+            echo "✓ Assets published for module {$moduleName}.\n";
+        } else {
+            if ($force) {
+                echo "Error: Failed to publish assets for module {$moduleName}.\n";
+                exit(1);
+            } else {
+                echo "Module {$moduleName} assets already published. Use --force to overwrite.\n";
+            }
+        }
+        
+    } elseif ($moduleCommand === 'publish-all') {
+        $force = isset($argv[2]) && $argv[2] === '--force';
+        
+        // Create application instance to get module manager
+        require_once __DIR__ . '/vendor/autoload.php';
+        require_once __DIR__ . '/src/Core/helpers.php';
+        $app = new \IsekaiPHP\Core\Application(__DIR__);
+        $moduleManager = $app->getModuleManager();
+        
+        if (!$moduleManager) {
+            echo "Error: Module manager not initialized.\n";
+            exit(1);
+        }
+        
+        $modules = $moduleManager->getModules();
+        $published = 0;
+        
+        foreach ($modules as $moduleName => $module) {
+            if ($moduleManager->publishAssets($moduleName, $force)) {
+                echo "✓ Published assets for module {$moduleName}\n";
+                $published++;
+            }
+        }
+        
+        if ($published > 0) {
+            echo "\n✓ Published assets for {$published} module(s).\n";
+        } else {
+            echo "No assets to publish or all assets already published.\n";
+        }
+        
+    } else {
+        echo "Error: Unknown module command: module:{$moduleCommand}\n";
+        echo "Available commands: module:make, module:list, module:enable, module:disable, module:install, module:install-all, module:publish, module:publish-all\n";
+        exit(1);
+    }
+} elseif ($command === 'cache:clear') {
+    bootstrapApp();
+    
+    $cacheConfig = Config::get('cache', []);
+    $cacheManager = new \IsekaiPHP\Cache\CacheManager($cacheConfig);
+    
+    if ($cacheManager->flush()) {
+        echo "✓ Cache cleared successfully.\n";
+    } else {
+        echo "Error: Failed to clear cache.\n";
+        exit(1);
+    }
+} elseif ($command === 'route:list') {
+    bootstrapApp();
+    
+    require_once __DIR__ . '/vendor/autoload.php';
+    require_once __DIR__ . '/src/Core/helpers.php';
+    $app = new \IsekaiPHP\Core\Application(__DIR__);
+    $router = $app->getRouter();
+    
+    // Get routes using reflection or add a method to Router
+    echo "Registered Routes:\n\n";
+    echo "Note: Route listing requires Router enhancement.\n";
+    echo "Routes are registered but listing functionality needs to be added.\n";
 } elseif (strpos($command, 'make:') === 0) {
     // Make command handler
     $parts = explode(':', $command);
@@ -980,9 +1387,69 @@ if ($command === 'key:generate') {
         file_put_contents($filePath, $stub);
         echo "✓ Migration created: {$filePath}\n";
         
+    } elseif ($makeType === 'request') {
+        $className = $toClassName($name);
+        $requestPath = __DIR__ . '/src/Http/Requests';
+        $filePath = $requestPath . '/' . $className . '.php';
+        
+        if (file_exists($filePath)) {
+            echo "Error: Request {$className} already exists.\n";
+            exit(1);
+        }
+        
+        $stub = file_get_contents(__DIR__ . '/stubs/request.stub');
+        $stub = str_replace('{{CLASS_NAME}}', $className, $stub);
+        
+        file_put_contents($filePath, $stub);
+        echo "✓ Request created: {$filePath}\n";
+        
+    } elseif ($makeType === 'event') {
+        $className = $toClassName($name);
+        $eventPath = __DIR__ . '/src/Events';
+        $filePath = $eventPath . '/' . $className . '.php';
+        
+        if (file_exists($filePath)) {
+            echo "Error: Event {$className} already exists.\n";
+            exit(1);
+        }
+        
+        $stub = file_get_contents(__DIR__ . '/stubs/event.stub');
+        $stub = str_replace('{{CLASS_NAME}}', $className, $stub);
+        
+        file_put_contents($filePath, $stub);
+        echo "✓ Event created: {$filePath}\n";
+        
+    } elseif ($makeType === 'listener') {
+        $className = $toClassName($name);
+        $listenerPath = __DIR__ . '/src/Events/Listeners';
+        
+        if (!is_dir($listenerPath)) {
+            mkdir($listenerPath, 0755, true);
+        }
+        
+        $filePath = $listenerPath . '/' . $className . '.php';
+        
+        if (file_exists($filePath)) {
+            echo "Error: Listener {$className} already exists.\n";
+            exit(1);
+        }
+        
+        $stub = file_get_contents(__DIR__ . '/stubs/listener.stub');
+        $stub = str_replace('{{CLASS_NAME}}', $className, $stub);
+        
+        // Add event type hint if specified
+        if (isset($options['event'])) {
+            $eventClass = $toClassName($options['event']);
+            $stub = str_replace('use IsekaiPHP\Events\Event;', "use IsekaiPHP\Events\Event;\nuse IsekaiPHP\Events\\{$eventClass};", $stub);
+            $stub = str_replace('public function handle(Event $event, string $eventName): void', "public function handle({$eventClass} \$event, string \$eventName): void", $stub);
+        }
+        
+        file_put_contents($filePath, $stub);
+        echo "✓ Listener created: {$filePath}\n";
+        
     } else {
         echo "Error: Unknown make command: make:{$makeType}\n";
-        echo "Available make commands: make:controller, make:model, make:middleware, make:migration\n";
+        echo "Available make commands: make:controller, make:model, make:middleware, make:migration, make:request, make:event, make:listener\n";
         exit(1);
     }
 } else {

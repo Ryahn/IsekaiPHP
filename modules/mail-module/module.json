@@ -1,0 +1,23 @@
+{
+    "name": "mail-module",
+    "display_name": "MailModule Module",
+    "version": "1.0.0",
+    "description": "A module for IsekaiPHP that adds Postmark mail driver",
+    "author": "",
+    "license": "MIT",
+    "requires": {
+        "modules": []
+    },
+    "extensions": {
+        "mail_drivers": {
+            "postmark": "MailModule\\Mail\\Drivers\\PostmarkMail"
+        }
+    },
+    "extra": {
+        "module": {
+            "namespace": "MailModule",
+            "class": "MailModule\\Module",
+            "service_provider": "MailModule\\ServiceProvider"
+        }
+    }
+}

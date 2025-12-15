@@ -121,3 +121,102 @@ if (!function_exists('vite')) {
     }
 }
 
+/**
+ * Get storage path
+ */
+if (!function_exists('storage_path')) {
+    function storage_path(string $path = ''): string
+    {
+        return base_path('storage') . ($path ? '/' . ltrim($path, '/') : '');
+    }
+}
+
+/**
+ * Get cache instance
+ */
+if (!function_exists('cache')) {
+    function cache(): \IsekaiPHP\Cache\CacheManager
+    {
+        static $manager = null;
+        if ($manager === null) {
+            $config = \IsekaiPHP\Core\Config::get('cache', []);
+            $manager = new \IsekaiPHP\Cache\CacheManager($config);
+        }
+        return $manager;
+    }
+}
+
+/**
+ * Get logger instance
+ */
+if (!function_exists('logger')) {
+    function logger(?string $channel = null)
+    {
+        static $logger = null;
+        if ($logger === null) {
+            $config = \IsekaiPHP\Core\Config::get('logging', []);
+            $logger = new \IsekaiPHP\Log\Logger($config);
+        }
+        return $channel ? $logger->channel($channel) : $logger;
+    }
+}
+
+/**
+ * Dispatch an event
+ */
+if (!function_exists('event')) {
+    function event(string $event, $payload = []): ?array
+    {
+        static $dispatcher = null;
+        if ($dispatcher === null) {
+            $dispatcher = new \IsekaiPHP\Events\EventDispatcher();
+        }
+        return $dispatcher->dispatch($event, $payload);
+    }
+}
+
+/**
+ * Get session instance
+ */
+if (!function_exists('session')) {
+    function session(): \IsekaiPHP\Session\SessionManager
+    {
+        static $session = null;
+        if ($session === null) {
+            $config = \IsekaiPHP\Core\Config::get('session', []);
+            $session = new \IsekaiPHP\Session\SessionManager($config);
+        }
+        return $session;
+    }
+}
+
+/**
+ * Get storage instance
+ */
+if (!function_exists('storage')) {
+    function storage(?string $disk = null): \IsekaiPHP\Storage\StorageInterface
+    {
+        static $storageManager = null;
+        if ($storageManager === null) {
+            $config = \IsekaiPHP\Core\Config::get('storage', []);
+            $storageManager = new \IsekaiPHP\Storage\StorageManager($config);
+        }
+        return $storageManager->disk($disk);
+    }
+}
+
+/**
+ * Get mail instance
+ */
+if (!function_exists('mail')) {
+    function mail(): \IsekaiPHP\Mail\MailManager
+    {
+        static $mail = null;
+        if ($mail === null) {
+            $config = \IsekaiPHP\Core\Config::get('mail', []);
+            $mail = new \IsekaiPHP\Mail\MailManager($config);
+        }
+        return $mail;
+    }
+}
+

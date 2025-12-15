@@ -1,0 +1,17 @@
+<?php
+
+namespace IsekaiPHP\Events\Listeners;
+
+use IsekaiPHP\Events\Event;
+
+class {{CLASS_NAME}}
+{
+    /**
+     * Handle the event.
+     */
+    public function handle(Event $event, string $eventName): void
+    {
+        //
+    }
+}
+

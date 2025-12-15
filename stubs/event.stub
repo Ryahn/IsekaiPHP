@@ -1,0 +1,15 @@
+<?php
+
+namespace IsekaiPHP\Events;
+
+class {{CLASS_NAME}} extends Event
+{
+    /**
+     * Create a new event instance.
+     */
+    public function __construct(array $data = [])
+    {
+        parent::__construct($data);
+    }
+}
+

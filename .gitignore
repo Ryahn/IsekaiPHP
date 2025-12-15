@@ -1,5 +1,7 @@
 # Dependencies
 /vendor/
+modules/*/vendor/
+modules/*/composer.lock
 
 # Environment
 .env
@@ -36,4 +38,6 @@ coverage/
 
 # Docker
 .docker/
+
+.cursor/
 

@@ -6,12 +6,26 @@ use IsekaiPHP\Database\DatabaseManager;
 use IsekaiPHP\Http\Request;
 use IsekaiPHP\Http\Response;
 use IsekaiPHP\Http\Router;
+use IsekaiPHP\Core\ModuleManager;
+use IsekaiPHP\Events\EventDispatcher;
+use IsekaiPHP\Cache\CacheManager;
+use IsekaiPHP\Log\Logger;
+use IsekaiPHP\Session\SessionManager;
+use IsekaiPHP\Storage\StorageManager;
+use IsekaiPHP\Mail\MailManager;
 
 class Application
 {
     protected Container $container;
     protected string $basePath;
     protected Router $router;
+    protected ?ModuleManager $moduleManager = null;
+    protected ?EventDispatcher $events = null;
+    protected ?CacheManager $cache = null;
+    protected ?Logger $logger = null;
+    protected ?SessionManager $session = null;
+    protected ?StorageManager $storage = null;
+    protected ?MailManager $mail = null;
 
     public function __construct(string $basePath)
     {
@@ -20,6 +34,9 @@ class Application
 
         // Set global app instance early so routes can access it
         $GLOBALS['app'] = $this;
+
+        // Load configuration first
+        Config::load($this->basePath);
 
         // Bind core services
         $this->container->singleton(Container::class, function () {
@@ -31,9 +48,37 @@ class Application
         $this->container->singleton(Router::class, function () {
             return new Router($this->container);
         });
+        $this->container->singleton(EventDispatcher::class, function () {
+            return $this->events = new EventDispatcher();
+        });
+        $this->container->singleton(CacheManager::class, function () {
+            $config = Config::get('cache', []);
+            return $this->cache = new CacheManager($config);
+        });
+        $this->container->singleton(Logger::class, function () {
+            $config = Config::get('logging', []);
+            return $this->logger = new Logger($config);
+        });
+        $this->container->singleton(SessionManager::class, function () {
+            $config = Config::get('session', []);
+            return $this->session = new SessionManager($config);
+        });
+        $this->container->singleton(StorageManager::class, function () {
+            $config = Config::get('storage', []);
+            return $this->storage = new StorageManager($config);
+        });
+        $this->container->singleton(MailManager::class, function () {
+            $config = Config::get('mail', []);
+            return $this->mail = new MailManager($config);
+        });
 
-        // Load configuration
-        Config::load($this->basePath);
+        // Initialize services immediately
+        $this->events = $this->container->make(EventDispatcher::class);
+        $this->cache = $this->container->make(CacheManager::class);
+        $this->logger = $this->container->make(Logger::class);
+        $this->session = $this->container->make(SessionManager::class);
+        $this->storage = $this->container->make(StorageManager::class);
+        $this->mail = $this->container->make(MailManager::class);
 
         // Initialize services
         $this->initializeServices();
@@ -57,6 +102,16 @@ class Application
 
         // Initialize router
         $this->router = $this->container->make(Router::class);
+
+        // Initialize and load modules
+        $this->moduleManager = new ModuleManager($this->container, $this->basePath);
+        $this->moduleManager->discover();
+        $this->moduleManager->loadModules();
+        $this->moduleManager->loadModuleConfigs();
+        $this->moduleManager->registerViews();
+        $this->moduleManager->registerRoutes($this->router);
+        $this->moduleManager->registerMiddleware($this->router);
+        // Module extensions are registered during loadModules() via registerModuleExtensions()
 
         // Register routes
         if (file_exists($this->basePath . '/routes/web.php')) {
@@ -120,6 +175,62 @@ class Application
     public function getRouter(): Router
     {
         return $this->router;
+    }
+
+    /**
+     * Get the module manager
+     */
+    public function getModuleManager(): ?ModuleManager
+    {
+        return $this->moduleManager;
+    }
+
+    /**
+     * Get the event dispatcher
+     */
+    public function getEventDispatcher(): ?EventDispatcher
+    {
+        return $this->events;
+    }
+
+    /**
+     * Get the cache manager
+     */
+    public function getCacheManager(): ?CacheManager
+    {
+        return $this->cache;
+    }
+
+    /**
+     * Get the logger
+     */
+    public function getLogger(): ?Logger
+    {
+        return $this->logger;
+    }
+
+    /**
+     * Get the session manager
+     */
+    public function getSessionManager(): ?SessionManager
+    {
+        return $this->session;
+    }
+
+    /**
+     * Get the storage manager
+     */
+    public function getStorageManager(): ?StorageManager
+    {
+        return $this->storage;
+    }
+
+    /**
+     * Get the mail manager
+     */
+    public function getMailManager(): ?MailManager
+    {
+        return $this->mail;
     }
 
     /**

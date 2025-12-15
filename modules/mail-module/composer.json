@@ -1,0 +1,22 @@
+{
+    "name": "mail-module/mail-module",
+    "description": "A module for IsekaiPHP",
+    "type": "isekaiphp-module",
+    "require": {
+        "php": "^8.4",
+        "isekaiphp/framework": "dev-main"
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/Ryahn/IsekaiPHP"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "MailModule\\": "src/"
+        }
+    }
+}
