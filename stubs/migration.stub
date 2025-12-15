@@ -1,0 +1,10 @@
+<?php
+
+use Illuminate\Database\Capsule\Manager as Capsule;
+use Illuminate\Database\Schema\Blueprint;
+
+Capsule::schema()->create('{{TABLE_NAME}}', function (Blueprint $table) {
+    $table->id();
+    $table->timestamps();
+});
+

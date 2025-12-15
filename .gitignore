@@ -1,0 +1,39 @@
+# Dependencies
+/vendor/
+
+# Environment
+.env
+.env.backup
+.env.production
+
+# Storage
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+/storage/cache/*
+!/storage/cache/.gitkeep
+/storage/sessions/*
+!/storage/sessions/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Composer
+composer.lock
+
+# Logs
+*.log
+logs/
+
+# Testing
+phpunit.xml
+.phpunit.result.cache
+coverage/
+
+# Docker
+.docker/
+

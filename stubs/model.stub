@@ -1,0 +1,24 @@
+<?php
+
+namespace IsekaiPHP\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class {{CLASS_NAME}} extends Model
+{
+    protected $table = '{{TABLE_NAME}}';
+
+    protected $fillable = [
+        //
+    ];
+
+    protected $hidden = [
+        //
+    ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+}
+

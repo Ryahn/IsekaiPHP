@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<ruleset name="IsekaiPHP Framework">
+    <description>Coding standard for IsekaiPHP Framework</description>
+
+    <!-- Directories to check -->
+    <file>src/</file>
+    <file>routes/</file>
+    <file>database/</file>
+    <file>config/</file>
+    <file>public/index.php</file>
+
+    <!-- Exclude directories -->
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/storage/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/example/*</exclude-pattern>
+
+    <!-- Use PSR-12 coding standard -->
+    <rule ref="PSR12"/>
+
+    <!-- Allow short array syntax -->
+    <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
+
+    <!-- Line length -->
+    <rule ref="Generic.Files.LineLength">
+        <properties>
+            <property name="lineLimit" value="120"/>
+            <property name="absoluteLineLimit" value="140"/>
+        </properties>
+    </rule>
+
+    <!-- Allow trailing commas in function calls -->
+    <rule ref="PSR12.Files.FileHeader.SpacingAfterBlock">
+        <severity>0</severity>
+    </rule>
+</ruleset>
+

@@ -1,0 +1,63 @@
+services:
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: isekaiphp-php
+    volumes:
+      - .:/var/www/html
+      - ./storage:/var/www/html/storage
+    networks:
+      # - traefik
+      - r7torrents-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.isekaiphp-php.rule=Host(`isekaiphp.localhost`)"
+      - "traefik.http.routers.isekaiphp-php.entrypoints=web"
+      - "traefik.http.services.isekaiphp-php.loadbalancer.server.port=9000"
+    depends_on:
+      - db
+
+  nginx:
+    image: nginx:alpine
+    container_name: isekaiphp-nginx
+    volumes:
+      - .:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "8282:80"
+    networks:
+      # - traefik
+      - r7torrents-network
+    depends_on:
+      - php
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.isekaiphp-nginx.rule=Host(`isekaiphp.localhost`)"
+      - "traefik.http.routers.isekaiphp-nginx.entrypoints=web"
+      - "traefik.http.services.isekaiphp-nginx.loadbalancer.server.port=80"
+
+  db:
+    image: mysql:8.0
+    container_name: isekaiphp-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: torrent_db
+      MYSQL_USER: torrent_user
+      MYSQL_PASSWORD: torrent_pass
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - r7torrents-network
+    ports:
+      - "3406:3306"
+
+networks:
+  # traefik:
+  #   external: true
+  r7torrents-network:
+    driver: bridge
+
+volumes:
+  db_data:
+

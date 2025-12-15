@@ -1,0 +1,345 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * IsekaiPHP Artisan CLI
+ *
+ * This command-line tool is inspired by Laravel's Artisan CLI.
+ * It provides a simple, elegant interface for common development tasks.
+ *
+ * @see https://laravel.com/docs/artisan Laravel Artisan Documentation
+ */
+
+$autoloadPath = __DIR__ . '/vendor/autoload.php';
+if (!file_exists($autoloadPath)) {
+    echo "Error: Composer dependencies not installed.\n";
+    echo "Please run 'composer install' to install dependencies.\n";
+    exit(1);
+}
+
+require_once $autoloadPath;
+require_once __DIR__ . '/src/Core/helpers.php';
+
+use IsekaiPHP\Core\Config;
+use IsekaiPHP\Database\DatabaseManager;
+use Illuminate\Database\Capsule\Manager as Capsule;
+
+if ($argc < 2) {
+    echo "IsekaiPHP Artisan CLI\n";
+    echo "Inspired by Laravel Artisan\n\n";
+    echo "Usage: php isekai <command> [options]\n\n";
+    echo "Available commands:\n";
+    echo "  key:generate                    - Generate application key\n";
+    echo "  migrate                         - Run database migrations\n";
+    echo "  migrate:fresh                   - Drop all tables and re-run migrations\n";
+    echo "  serve [--host=] [--port=]       - Start the development server\n\n";
+    echo "  make:controller <name>          - Create a new controller class\n";
+    echo "  make:model <name>               - Create a new Eloquent model class\n";
+    echo "  make:middleware <name>          - Create a new middleware class\n";
+    echo "  make:migration <name>           - Create a new migration file\n";
+    exit(1);
+}
+
+$command = $argv[1];
+
+// Bootstrap application for database commands
+function bootstrapApp() {
+    $basePath = __DIR__;
+    Config::load($basePath);
+    $dbConfig = Config::get('database');
+    if ($dbConfig) {
+        DatabaseManager::initialize($dbConfig);
+    }
+}
+
+if ($command === 'key:generate') {
+    $key = 'base64:' . base64_encode(random_bytes(32));
+    
+    echo "Application key generated:\n";
+    echo $key . "\n\n";
+    echo "Add this to your .env file:\n";
+    echo "APP_KEY={$key}\n";
+    
+    // Check if .env exists and offer to update it
+    if (file_exists('.env')) {
+        $envContent = file_get_contents('.env');
+        if (strpos($envContent, 'APP_KEY=') === false) {
+            file_put_contents('.env', "\nAPP_KEY={$key}\n", FILE_APPEND);
+            echo "\n✓ Added to .env file\n";
+        } else {
+            $newEnvContent = preg_replace('/^APP_KEY=.*/m', "APP_KEY={$key}", $envContent);
+            file_put_contents('.env', $newEnvContent);
+            echo "\n✓ Updated .env file\n";
+        }
+    }
+} elseif ($command === 'migrate' || $command === 'migrate:fresh') {
+    bootstrapApp();
+    
+    $migrationsPath = __DIR__ . '/database/migrations';
+    
+    if (!is_dir($migrationsPath)) {
+        echo "Error: Migrations directory not found\n";
+        exit(1);
+    }
+    
+    // Create migrations table if it doesn't exist
+    if (!Capsule::schema()->hasTable('migrations')) {
+        Capsule::schema()->create('migrations', function ($table) {
+            $table->string('migration');
+            $table->integer('batch');
+        });
+    }
+    
+    // Get all migration files (sorted alphabetically - numeric prefixes ensure correct order)
+    $migrationFiles = glob($migrationsPath . '/*.php');
+    sort($migrationFiles);
+    
+    if (empty($migrationFiles)) {
+        echo "No migrations found.\n";
+        exit(0);
+    }
+    
+    // Get already run migrations
+    $runMigrations = Capsule::table('migrations')->pluck('migration')->toArray();
+    
+    // If migrate:fresh, drop all tables and clear migrations
+    if ($command === 'migrate:fresh') {
+        echo "Dropping all tables...\n";
+        $tables = Capsule::select('SHOW TABLES');
+        $dbName = Capsule::connection()->getDatabaseName();
+        $tableKey = "Tables_in_{$dbName}";
+        
+        foreach ($tables as $table) {
+            $tableName = $table->$tableKey;
+            if ($tableName !== 'migrations') {
+                Capsule::schema()->dropIfExists($tableName);
+                echo "  Dropped table: {$tableName}\n";
+            }
+        }
+        
+        Capsule::table('migrations')->truncate();
+        $runMigrations = [];
+        echo "All tables dropped.\n\n";
+    }
+    
+    // Get next batch number
+    $batch = Capsule::table('migrations')->max('batch') ?? 0;
+    $batch++;
+    
+    $runCount = 0;
+    
+    foreach ($migrationFiles as $file) {
+        $migrationName = basename($file, '.php');
+        
+        // Skip if already run
+        if (in_array($migrationName, $runMigrations)) {
+            continue;
+        }
+        
+        echo "Running migration: {$migrationName}...\n";
+        
+        try {
+            // Check if migration uses create or drop
+            $content = file_get_contents($file);
+            
+            // Execute the migration file
+            require $file;
+            
+            // Record migration
+            Capsule::table('migrations')->insert([
+                'migration' => $migrationName,
+                'batch' => $batch,
+            ]);
+            
+            echo "  ✓ {$migrationName}\n";
+            $runCount++;
+        } catch (\Exception $e) {
+            echo "  ✗ Error: {$e->getMessage()}\n";
+            exit(1);
+        }
+    }
+    
+    if ($runCount === 0) {
+        echo "No new migrations to run.\n";
+    } else {
+        echo "\n✓ Ran {$runCount} migration(s)\n";
+    }
+} elseif ($command === 'serve') {
+    $host = '127.0.0.1';
+    $port = 8000;
+    
+    // Parse options
+    for ($i = 2; $i < $argc; $i++) {
+        if (strpos($argv[$i], '--host=') === 0) {
+            $host = substr($argv[$i], 7);
+        } elseif (strpos($argv[$i], '--port=') === 0) {
+            $port = (int)substr($argv[$i], 7);
+        }
+    }
+    
+    $publicPath = __DIR__ . '/public';
+    $routerPath = $publicPath . '/index.php';
+    
+    if (!file_exists($routerPath)) {
+        echo "Error: Public index.php not found at {$routerPath}\n";
+        exit(1);
+    }
+    
+    echo "IsekaiPHP development server started: http://{$host}:{$port}\n";
+    echo "Press Ctrl+C to stop the server\n\n";
+    
+    // Start PHP built-in server
+    $command = sprintf(
+        'php -S %s:%d -t %s %s',
+        escapeshellarg($host),
+        $port,
+        escapeshellarg($publicPath),
+        escapeshellarg($routerPath)
+    );
+    
+    passthru($command);
+} elseif (strpos($command, 'make:') === 0) {
+    // Make command handler
+    $parts = explode(':', $command);
+    $makeType = $parts[1] ?? null;
+    
+    if (!isset($argv[2])) {
+        echo "Error: Name is required for make:{$makeType}\n";
+        echo "Usage: php isekai make:{$makeType} <name>\n";
+        exit(1);
+    }
+    
+    $name = $argv[2];
+    
+    // Helper function to convert name to class name
+    $toClassName = function($name) {
+        return str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
+    };
+    
+    // Helper function to convert name to table name
+    $toTableName = function($name) {
+        return str_replace('_', '-', strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $name)));
+    };
+    
+    // Helper function to get namespace from path
+    $getNamespace = function($path, $basePath) {
+        $relativePath = str_replace($basePath . '/', '', $path);
+        $relativePath = str_replace('/', '\\', dirname($relativePath));
+        $relativePath = str_replace('src\\', 'IsekaiPHP\\', $relativePath);
+        return $relativePath === '.' ? 'IsekaiPHP' : $relativePath;
+    };
+    
+    if ($makeType === 'controller') {
+        $className = $toClassName($name);
+        $controllerPath = __DIR__ . '/src/Http/Controllers';
+        
+        // Handle nested controllers (e.g., Admin/UserController)
+        if (strpos($name, '/') !== false) {
+            $parts = explode('/', $name);
+            $className = $toClassName(array_pop($parts));
+            $subDir = implode('/', $parts);
+            $controllerPath .= '/' . $subDir;
+            if (!is_dir($controllerPath)) {
+                mkdir($controllerPath, 0755, true);
+            }
+            $namespace = 'IsekaiPHP\\Http\\Controllers\\' . str_replace('/', '\\', $subDir);
+        } else {
+            $namespace = 'IsekaiPHP\\Http\\Controllers';
+        }
+        
+        $filePath = $controllerPath . '/' . $className . '.php';
+        
+        if (file_exists($filePath)) {
+            echo "Error: Controller {$className} already exists.\n";
+            exit(1);
+        }
+        
+        $stub = file_get_contents(__DIR__ . '/stubs/controller.stub');
+        $stub = str_replace('{{CLASS_NAME}}', $className, $stub);
+        $stub = str_replace('namespace IsekaiPHP\\Http\\Controllers;', "namespace {$namespace};", $stub);
+        
+        file_put_contents($filePath, $stub);
+        echo "✓ Controller created: {$filePath}\n";
+        
+    } elseif ($makeType === 'model') {
+        $className = $toClassName($name);
+        $modelPath = __DIR__ . '/src/Models';
+        $filePath = $modelPath . '/' . $className . '.php';
+        
+        if (file_exists($filePath)) {
+            echo "Error: Model {$className} already exists.\n";
+            exit(1);
+        }
+        
+        $tableName = $toTableName($className);
+        // Pluralize table name (simple version)
+        if (!str_ends_with($tableName, 's')) {
+            $tableName .= 's';
+        }
+        
+        $stub = file_get_contents(__DIR__ . '/stubs/model.stub');
+        $stub = str_replace('{{CLASS_NAME}}', $className, $stub);
+        $stub = str_replace('{{TABLE_NAME}}', $tableName, $stub);
+        
+        file_put_contents($filePath, $stub);
+        echo "✓ Model created: {$filePath}\n";
+        
+    } elseif ($makeType === 'middleware') {
+        $className = $toClassName($name);
+        $middlewarePath = __DIR__ . '/src/Http/Middleware';
+        $filePath = $middlewarePath . '/' . $className . '.php';
+        
+        if (file_exists($filePath)) {
+            echo "Error: Middleware {$className} already exists.\n";
+            exit(1);
+        }
+        
+        $stub = file_get_contents(__DIR__ . '/stubs/middleware.stub');
+        $stub = str_replace('{{CLASS_NAME}}', $className, $stub);
+        
+        file_put_contents($filePath, $stub);
+        echo "✓ Middleware created: {$filePath}\n";
+        
+    } elseif ($makeType === 'migration') {
+        $migrationName = $name;
+        $timestamp = date('Y_m_d_His');
+        $migrationPath = __DIR__ . '/database/migrations';
+        
+        // Convert name to snake_case
+        $snakeName = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $migrationName));
+        $snakeName = str_replace(['-', ' '], '_', $snakeName);
+        
+        $fileName = $timestamp . '_' . $snakeName . '.php';
+        $filePath = $migrationPath . '/' . $fileName;
+        
+        if (file_exists($filePath)) {
+            echo "Error: Migration {$fileName} already exists.\n";
+            exit(1);
+        }
+        
+        // Try to extract table name from migration name
+        $tableName = $snakeName;
+        if (preg_match('/create_(.+)_table/', $snakeName, $matches)) {
+            $tableName = $matches[1];
+        } elseif (preg_match('/add_(.+)_to_(.+)_table/', $snakeName, $matches)) {
+            $tableName = $matches[2];
+        } elseif (preg_match('/drop_(.+)_from_(.+)_table/', $snakeName, $matches)) {
+            $tableName = $matches[2];
+        }
+        
+        $stub = file_get_contents(__DIR__ . '/stubs/migration.stub');
+        $stub = str_replace('{{TABLE_NAME}}', $tableName, $stub);
+        
+        file_put_contents($filePath, $stub);
+        echo "✓ Migration created: {$filePath}\n";
+        
+    } else {
+        echo "Error: Unknown make command: make:{$makeType}\n";
+        echo "Available make commands: make:controller, make:model, make:middleware, make:migration\n";
+        exit(1);
+    }
+} else {
+    echo "Unknown command: {$command}\n";
+    exit(1);
+}
+

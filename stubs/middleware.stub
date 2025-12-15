@@ -1,0 +1,24 @@
+<?php
+
+namespace IsekaiPHP\Http\Middleware;
+
+use IsekaiPHP\Http\Request;
+use IsekaiPHP\Http\Response;
+
+class {{CLASS_NAME}}
+{
+    /**
+     * Handle the request
+     *
+     * @param Request $request
+     * @param \Closure $next
+     * @return Response
+     */
+    public function handle(Request $request, \Closure $next): Response
+    {
+        // Add your middleware logic here
+
+        return $next($request);
+    }
+}
+

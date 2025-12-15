@@ -1,0 +1,3 @@
+# Update tracker stats every 15 minutes
+*/15 * * * * root cd /var/www/html && /usr/local/bin/php artisan torrent:update-stats >> /var/log/cron.log 2>&1
+

@@ -1,0 +1,10 @@
+vendor/
+.git/
+.gitignore
+.env
+.env.example
+README.md
+tests/
+*.md
+example/
+
