@@ -32,9 +32,13 @@ if ($argc < 2) {
     echo "  key:generate                    - Generate application key\n";
     echo "  migrate                         - Run database migrations\n";
     echo "  migrate:fresh                   - Drop all tables and re-run migrations\n";
+    echo "  db:backup [options]              - Backup the database\n";
+    echo "    Options: --file=, --max=N, --tables=table1,table2, --compression=zip|tar, --docker\n";
     echo "  serve [--host=] [--port=]       - Start the development server\n\n";
-    echo "  make:controller <name>          - Create a new controller class\n";
-    echo "  make:model <name>               - Create a new Eloquent model class\n";
+    echo "  make:controller <name> [options] - Create a new controller class\n";
+    echo "    Options: -m (model), -d (migration), --model=NAME, --migration=NAME\n";
+    echo "  make:model <name> [options]      - Create a new Eloquent model class\n";
+    echo "    Options: -c (controller), -m (migration), --controller=NAME, --migration=NAME\n";
     echo "  make:middleware <name>          - Create a new middleware class\n";
     echo "  make:migration <name>           - Create a new migration file\n";
     exit(1);
@@ -164,6 +168,470 @@ if ($command === 'key:generate') {
     } else {
         echo "\n✓ Ran {$runCount} migration(s)\n";
     }
+} elseif ($command === 'db:backup') {
+    bootstrapApp();
+    
+    $dbConfig = Config::get('database');
+    if (!$dbConfig) {
+        echo "Error: Database configuration not found.\n";
+        exit(1);
+    }
+    
+    $default = $dbConfig['default'] ?? 'mysql';
+    $connection = $dbConfig['connections'][$default] ?? [];
+    
+    if (empty($connection)) {
+        echo "Error: Database connection configuration not found.\n";
+        exit(1);
+    }
+    
+    $driver = $connection['driver'] ?? 'mysql';
+    $database = $connection['database'] ?? '';
+    
+    if (empty($database)) {
+        echo "Error: Database name not configured.\n";
+        exit(1);
+    }
+    
+    // Parse options
+    $outputFile = null;
+    $maxBackups = null;
+    $tables = null;
+    $compression = null;
+    $useDocker = false;
+    
+    for ($i = 2; $i < $argc; $i++) {
+        $arg = $argv[$i];
+        if (strpos($arg, '--file=') === 0) {
+            $outputFile = substr($arg, 7);
+        } elseif (strpos($arg, '--max=') === 0) {
+            $maxBackups = (int)substr($arg, 6);
+        } elseif (strpos($arg, '--tables=') === 0) {
+            $tables = substr($arg, 9);
+        } elseif (strpos($arg, '--compression=') === 0) {
+            $compression = strtolower(substr($arg, 15));
+            if (!in_array($compression, ['zip', 'tar'])) {
+                echo "Error: Compression must be 'zip' or 'tar'.\n";
+                exit(1);
+            }
+        } elseif ($arg === '--docker') {
+            $useDocker = true;
+        }
+    }
+    
+    // Create backups directory if it doesn't exist
+    $backupsDir = __DIR__ . '/database/backups';
+    if (!is_dir($backupsDir)) {
+        mkdir($backupsDir, 0755, true);
+    }
+    
+    // Generate backup filename
+    $timestamp = date('Y-m-d_His');
+    $baseFileName = $database . '_' . $timestamp;
+    
+    if ($outputFile === null) {
+        $outputFile = $backupsDir . '/' . $baseFileName . '.sql';
+    } else {
+        // If path is relative, make it relative to backups directory
+        if (strpos($outputFile, '/') !== 0 && strpos($outputFile, '\\') !== 0) {
+            $outputFile = $backupsDir . '/' . $outputFile;
+        }
+        
+        // Ensure output directory exists
+        $outputDir = dirname($outputFile);
+        if (!is_dir($outputDir)) {
+            mkdir($outputDir, 0755, true);
+        }
+    }
+    
+    // Ensure .sql extension (unless already has an extension)
+    if (!preg_match('/\.(sql|gz|bz2|zip|tar)$/i', $outputFile)) {
+        $outputFile .= '.sql';
+    }
+    
+    // Determine final output file (before compression)
+    $finalOutputFile = $outputFile;
+    $sqlFile = $outputFile;
+    
+    echo "Backing up database: {$database}\n";
+    echo "Driver: {$driver}\n";
+    if ($tables) {
+        echo "Tables: {$tables}\n";
+    }
+    if ($useDocker) {
+        echo "Using Docker: Yes\n";
+    }
+    
+    $success = false;
+    $dockerService = 'db'; // Default docker service name for database
+    
+    // Helper function to wrap command in docker-compose exec if needed
+    $wrapDockerCommand = function($command) use ($useDocker, $dockerService) {
+        if ($useDocker) {
+            // Check if docker-compose is available
+            exec('which docker-compose 2>/dev/null', $whichOutput, $whichReturn);
+            $dockerComposeCmd = ($whichReturn === 0) ? 'docker-compose' : 'docker compose';
+            
+            return sprintf(
+                '%s exec -T %s sh -c %s',
+                $dockerComposeCmd,
+                escapeshellarg($dockerService),
+                escapeshellarg($command)
+            );
+        }
+        return $command;
+    };
+    
+    if ($driver === 'mysql') {
+        $host = $connection['host'] ?? '127.0.0.1';
+        $port = $connection['port'] ?? '3306';
+        $username = $connection['username'] ?? 'root';
+        $password = $connection['password'] ?? '';
+        
+        // Build mysqldump command
+        $dumpCommand = 'mysqldump';
+        $dumpArgs = [];
+        
+        if ($useDocker) {
+            // When using docker, connect to localhost (container internal)
+            $dumpArgs[] = '-h 127.0.0.1';
+        } else {
+            $dumpArgs[] = '-h ' . escapeshellarg($host);
+            $dumpArgs[] = '-P ' . escapeshellarg($port);
+        }
+        
+        $dumpArgs[] = '-u ' . escapeshellarg($username);
+        if ($password) {
+            $dumpArgs[] = '-p' . escapeshellarg($password);
+        }
+        
+        // Add table selection if specified
+        if ($tables) {
+            $tableList = explode(',', $tables);
+            $tableList = array_map('trim', $tableList);
+            $dumpArgs[] = escapeshellarg($database);
+            foreach ($tableList as $table) {
+                $dumpArgs[] = escapeshellarg($table);
+            }
+        } else {
+            $dumpArgs[] = escapeshellarg($database);
+        }
+        
+        $command = $dumpCommand . ' ' . implode(' ', $dumpArgs) . ' > ' . escapeshellarg($sqlFile);
+        
+        // Wrap in docker if needed
+        if ($useDocker) {
+            // For docker, we need to write to a path inside the container, then copy out
+            $containerPath = '/tmp/backup_' . $timestamp . '.sql';
+            $dockerCommand = $dumpCommand . ' ' . implode(' ', $dumpArgs) . ' > ' . escapeshellarg($containerPath);
+            $command = $wrapDockerCommand($dockerCommand);
+            
+            // Execute backup
+            exec($command . ' 2>&1', $output, $returnVar);
+            
+            if ($returnVar === 0) {
+                // Copy file from container
+                exec('which docker-compose 2>/dev/null', $whichOutput, $whichReturn);
+                $dockerComposeCmd = ($whichReturn === 0) ? 'docker-compose' : 'docker compose';
+                $copyCommand = sprintf(
+                    '%s cp %s:%s %s',
+                    $dockerComposeCmd,
+                    escapeshellarg($dockerService),
+                    escapeshellarg($containerPath),
+                    escapeshellarg($sqlFile)
+                );
+                exec($copyCommand . ' 2>&1', $copyOutput, $copyReturn);
+                
+                if ($copyReturn === 0 && file_exists($sqlFile)) {
+                    // Clean up container file
+                    $cleanupCommand = $wrapDockerCommand('rm ' . escapeshellarg($containerPath));
+                    exec($cleanupCommand);
+                    $success = true;
+                } else {
+                    echo "Error: Failed to copy backup from container.\n";
+                    if (!empty($copyOutput)) {
+                        echo implode("\n", $copyOutput) . "\n";
+                    }
+                    exit(1);
+                }
+            } else {
+                echo "Error: Backup failed.\n";
+                if (!empty($output)) {
+                    echo implode("\n", $output) . "\n";
+                }
+                exit(1);
+            }
+        } else {
+            // Execute backup
+            exec($command . ' 2>&1', $output, $returnVar);
+            
+            if ($returnVar === 0 && file_exists($sqlFile)) {
+                $success = true;
+            } else {
+                echo "Error: Backup failed.\n";
+                if (!empty($output)) {
+                    echo implode("\n", $output) . "\n";
+                }
+                exit(1);
+            }
+        }
+        
+    } elseif ($driver === 'pgsql' || $driver === 'postgres') {
+        $host = $connection['host'] ?? '127.0.0.1';
+        $port = $connection['port'] ?? '5432';
+        $username = $connection['username'] ?? 'postgres';
+        $password = $connection['password'] ?? '';
+        
+        // Set PGPASSWORD environment variable for pg_dump
+        if ($password && !$useDocker) {
+            putenv('PGPASSWORD=' . $password);
+        }
+        
+        // Build pg_dump command
+        $dumpCommand = 'pg_dump';
+        $dumpArgs = [];
+        
+        if ($useDocker) {
+            $dumpArgs[] = '-h 127.0.0.1';
+        } else {
+            $dumpArgs[] = '-h ' . escapeshellarg($host);
+            $dumpArgs[] = '-p ' . escapeshellarg($port);
+        }
+        
+        $dumpArgs[] = '-U ' . escapeshellarg($username);
+        $dumpArgs[] = '-f ' . escapeshellarg($sqlFile);
+        
+        // Add table selection if specified
+        if ($tables) {
+            $tableList = explode(',', $tables);
+            $tableList = array_map('trim', $tableList);
+            foreach ($tableList as $table) {
+                $dumpArgs[] = '-t ' . escapeshellarg($table);
+            }
+        }
+        
+        $dumpArgs[] = escapeshellarg($database);
+        
+        $command = $dumpCommand . ' ' . implode(' ', $dumpArgs);
+        
+        // Wrap in docker if needed
+        if ($useDocker) {
+            $containerPath = '/tmp/backup_' . $timestamp . '.sql';
+            $dockerCommand = str_replace(escapeshellarg($sqlFile), escapeshellarg($containerPath), $command);
+            if ($password) {
+                $dockerCommand = 'PGPASSWORD=' . escapeshellarg($password) . ' ' . $dockerCommand;
+            }
+            $command = $wrapDockerCommand($dockerCommand);
+            
+            exec($command . ' 2>&1', $output, $returnVar);
+            
+            if ($returnVar === 0) {
+                exec('which docker-compose 2>/dev/null', $whichOutput, $whichReturn);
+                $dockerComposeCmd = ($whichReturn === 0) ? 'docker-compose' : 'docker compose';
+                $copyCommand = sprintf(
+                    '%s cp %s:%s %s',
+                    $dockerComposeCmd,
+                    escapeshellarg($dockerService),
+                    escapeshellarg($containerPath),
+                    escapeshellarg($sqlFile)
+                );
+                exec($copyCommand . ' 2>&1', $copyOutput, $copyReturn);
+                
+                if ($copyReturn === 0 && file_exists($sqlFile)) {
+                    $cleanupCommand = $wrapDockerCommand('rm ' . escapeshellarg($containerPath));
+                    exec($cleanupCommand);
+                    $success = true;
+                } else {
+                    echo "Error: Failed to copy backup from container.\n";
+                    if (!empty($copyOutput)) {
+                        echo implode("\n", $copyOutput) . "\n";
+                    }
+                    exit(1);
+                }
+            } else {
+                echo "Error: Backup failed.\n";
+                if (!empty($output)) {
+                    echo implode("\n", $output) . "\n";
+                }
+                exit(1);
+            }
+        } else {
+            exec($command . ' 2>&1', $output, $returnVar);
+            
+            if ($returnVar === 0 && file_exists($sqlFile)) {
+                $success = true;
+            } else {
+                echo "Error: Backup failed.\n";
+                if (!empty($output)) {
+                    echo implode("\n", $output) . "\n";
+                }
+                exit(1);
+            }
+        }
+        
+    } elseif ($driver === 'sqlite') {
+        $databasePath = $connection['database'];
+        
+        // SQLite database is a file, so we'll create a SQL dump
+        if ($useDocker) {
+            // For docker, we need to access the file inside the container
+            $containerDbPath = $databasePath;
+            $command = 'sqlite3 ' . escapeshellarg($containerDbPath) . ' .dump > ' . escapeshellarg('/tmp/backup_' . $timestamp . '.sql');
+            $command = $wrapDockerCommand($command);
+            
+            exec($command . ' 2>&1', $output, $returnVar);
+            
+            if ($returnVar === 0) {
+                exec('which docker-compose 2>/dev/null', $whichOutput, $whichReturn);
+                $dockerComposeCmd = ($whichReturn === 0) ? 'docker-compose' : 'docker compose';
+                $copyCommand = sprintf(
+                    '%s cp %s:/tmp/backup_%s.sql %s',
+                    $dockerComposeCmd,
+                    escapeshellarg($dockerService),
+                    $timestamp,
+                    escapeshellarg($sqlFile)
+                );
+                exec($copyCommand . ' 2>&1', $copyOutput, $copyReturn);
+                
+                if ($copyReturn === 0 && file_exists($sqlFile)) {
+                    $success = true;
+                } else {
+                    echo "Error: Failed to copy backup from container.\n";
+                    if (!empty($copyOutput)) {
+                        echo implode("\n", $copyOutput) . "\n";
+                    }
+                    exit(1);
+                }
+            } else {
+                echo "Error: Backup failed.\n";
+                if (!empty($output)) {
+                    echo implode("\n", $output) . "\n";
+                }
+                exit(1);
+            }
+        } else {
+            if (!file_exists($databasePath)) {
+                echo "Error: SQLite database file not found: {$databasePath}\n";
+                exit(1);
+            }
+            
+            // Use sqlite3 to dump the database
+            $command = sprintf(
+                'sqlite3 %s .dump > %s',
+                escapeshellarg($databasePath),
+                escapeshellarg($sqlFile)
+            );
+            
+            exec($command . ' 2>&1', $output, $returnVar);
+            
+            if ($returnVar === 0 && file_exists($sqlFile)) {
+                $success = true;
+            } else {
+                echo "Error: Backup failed.\n";
+                if (!empty($output)) {
+                    echo implode("\n", $output) . "\n";
+                }
+                exit(1);
+            }
+        }
+        
+    } else {
+        echo "Error: Unsupported database driver: {$driver}\n";
+        echo "Supported drivers: mysql, pgsql, postgres, sqlite\n";
+        exit(1);
+    }
+    
+    if ($success) {
+        // Apply compression if requested
+        if ($compression === 'zip') {
+            // Replace extension with .zip, or append .zip if no extension
+            if (preg_match('/\.(sql|gz|bz2|tar)$/i', $sqlFile)) {
+                $zipFile = preg_replace('/\.(sql|gz|bz2|tar)$/i', '.zip', $sqlFile);
+            } else {
+                $zipFile = $sqlFile . '.zip';
+            }
+            
+            $zip = new \ZipArchive();
+            if ($zip->open($zipFile, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === true) {
+                $zip->addFile($sqlFile, basename($sqlFile));
+                $zip->close();
+                unlink($sqlFile);
+                $finalOutputFile = $zipFile;
+                echo "✓ Compressed backup to ZIP\n";
+            } else {
+                echo "Warning: Failed to create ZIP file, keeping SQL backup.\n";
+                $finalOutputFile = $sqlFile;
+            }
+        } elseif ($compression === 'tar') {
+            // Replace extension with .tar.gz, or append .tar.gz if no extension
+            if (preg_match('/\.(sql|gz|bz2|zip)$/i', $sqlFile)) {
+                $tarFile = preg_replace('/\.(sql|gz|bz2|zip)$/i', '.tar.gz', $sqlFile);
+            } else {
+                $tarFile = $sqlFile . '.tar.gz';
+            }
+            
+            $command = sprintf(
+                'tar -czf %s -C %s %s',
+                escapeshellarg($tarFile),
+                escapeshellarg(dirname($sqlFile)),
+                escapeshellarg(basename($sqlFile))
+            );
+            exec($command . ' 2>&1', $tarOutput, $tarReturn);
+            if ($tarReturn === 0 && file_exists($tarFile)) {
+                unlink($sqlFile);
+                $finalOutputFile = $tarFile;
+                echo "✓ Compressed backup to TAR.GZ\n";
+            } else {
+                echo "Warning: Failed to create TAR file, keeping SQL backup.\n";
+                if (!empty($tarOutput)) {
+                    echo implode("\n", $tarOutput) . "\n";
+                }
+                $finalOutputFile = $sqlFile;
+            }
+        } else {
+            $finalOutputFile = $sqlFile;
+        }
+        
+        // Clean up old backups if --max is specified
+        if ($maxBackups !== null && $maxBackups > 0) {
+            // Get all backup files matching the database pattern
+            $extensions = ['sql', 'sql.gz', 'sql.bz2', 'zip', 'tar', 'tar.gz'];
+            $backupFiles = [];
+            
+            foreach ($extensions as $ext) {
+                $pattern = $backupsDir . '/' . $database . '_*.' . $ext;
+                $files = glob($pattern);
+                $backupFiles = array_merge($backupFiles, $files);
+            }
+            
+            // Sort by modification time (newest first)
+            usort($backupFiles, function($a, $b) {
+                return filemtime($b) - filemtime($a);
+            });
+            
+            // Keep only the specified number of backups
+            if (count($backupFiles) > $maxBackups) {
+                $filesToDelete = array_slice($backupFiles, $maxBackups);
+                foreach ($filesToDelete as $file) {
+                    if (file_exists($file)) {
+                        unlink($file);
+                        echo "  Deleted old backup: " . basename($file) . "\n";
+                    }
+                }
+                echo "  Kept {$maxBackups} most recent backup(s)\n";
+            }
+        }
+        
+        $fileSize = filesize($finalOutputFile);
+        $fileSizeFormatted = $fileSize < 1024 
+            ? $fileSize . ' B' 
+            : ($fileSize < 1048576 
+                ? round($fileSize / 1024, 2) . ' KB' 
+                : round($fileSize / 1048576, 2) . ' MB');
+        
+        echo "✓ Backup created successfully: {$finalOutputFile}\n";
+        echo "  Size: {$fileSizeFormatted}\n";
+    }
 } elseif ($command === 'serve') {
     $host = '127.0.0.1';
     $port = 8000;
@@ -205,11 +673,36 @@ if ($command === 'key:generate') {
     
     if (!isset($argv[2])) {
         echo "Error: Name is required for make:{$makeType}\n";
-        echo "Usage: php isekai make:{$makeType} <name>\n";
+        echo "Usage: php isekai make:{$makeType} <name> [options]\n";
         exit(1);
     }
     
     $name = $argv[2];
+    
+    // Parse flags and options from remaining arguments
+    $flags = [];
+    $options = [];
+    
+    for ($i = 3; $i < $argc; $i++) {
+        $arg = $argv[$i];
+        
+        // Parse long options (--option=value)
+        if (strpos($arg, '--') === 0) {
+            if (strpos($arg, '=') !== false) {
+                list($opt, $val) = explode('=', substr($arg, 2), 2);
+                $options[$opt] = $val;
+            } else {
+                $options[substr($arg, 2)] = true;
+            }
+        }
+        // Parse short flags (-abc or -a -b -c)
+        elseif (strpos($arg, '-') === 0) {
+            $flagString = substr($arg, 1);
+            for ($j = 0; $j < strlen($flagString); $j++) {
+                $flags[$flagString[$j]] = true;
+            }
+        }
+    }
     
     // Helper function to convert name to class name
     $toClassName = function($name) {
@@ -227,6 +720,106 @@ if ($command === 'key:generate') {
         $relativePath = str_replace('/', '\\', dirname($relativePath));
         $relativePath = str_replace('src\\', 'IsekaiPHP\\', $relativePath);
         return $relativePath === '.' ? 'IsekaiPHP' : $relativePath;
+    };
+    
+    // Helper function to create a controller
+    $createController = function($controllerName, $baseName = null) use ($toClassName, $getNamespace) {
+        $className = $toClassName($controllerName);
+        $controllerPath = __DIR__ . '/src/Http/Controllers';
+        
+        // Handle nested controllers (e.g., Admin/UserController)
+        if (strpos($controllerName, '/') !== false) {
+            $parts = explode('/', $controllerName);
+            $className = $toClassName(array_pop($parts));
+            $subDir = implode('/', $parts);
+            $controllerPath .= '/' . $subDir;
+            if (!is_dir($controllerPath)) {
+                mkdir($controllerPath, 0755, true);
+            }
+            $namespace = 'IsekaiPHP\\Http\\Controllers\\' . str_replace('/', '\\', $subDir);
+        } else {
+            $namespace = 'IsekaiPHP\\Http\\Controllers';
+        }
+        
+        $filePath = $controllerPath . '/' . $className . '.php';
+        
+        if (file_exists($filePath)) {
+            echo "Error: Controller {$className} already exists.\n";
+            return false;
+        }
+        
+        $stub = file_get_contents(__DIR__ . '/stubs/controller.stub');
+        $stub = str_replace('{{CLASS_NAME}}', $className, $stub);
+        $stub = str_replace('namespace IsekaiPHP\\Http\\Controllers;', "namespace {$namespace};", $stub);
+        
+        file_put_contents($filePath, $stub);
+        echo "✓ Controller created: {$filePath}\n";
+        return true;
+    };
+    
+    // Helper function to create a model
+    $createModel = function($modelName) use ($toClassName, $toTableName) {
+        $className = $toClassName($modelName);
+        $modelPath = __DIR__ . '/src/Models';
+        $filePath = $modelPath . '/' . $className . '.php';
+        
+        if (file_exists($filePath)) {
+            echo "Error: Model {$className} already exists.\n";
+            return false;
+        }
+        
+        $tableName = $toTableName($className);
+        // Pluralize table name (simple version)
+        if (!str_ends_with($tableName, 's')) {
+            $tableName .= 's';
+        }
+        
+        $stub = file_get_contents(__DIR__ . '/stubs/model.stub');
+        $stub = str_replace('{{CLASS_NAME}}', $className, $stub);
+        $stub = str_replace('{{TABLE_NAME}}', $tableName, $stub);
+        
+        file_put_contents($filePath, $stub);
+        echo "✓ Model created: {$filePath}\n";
+        return true;
+    };
+    
+    // Helper function to create a migration
+    $createMigration = function($migrationName, $tableName = null) use ($toTableName, $toClassName) {
+        $timestamp = date('Y_m_d_His');
+        $migrationPath = __DIR__ . '/database/migrations';
+        
+        // Convert name to snake_case
+        $snakeName = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $migrationName));
+        $snakeName = str_replace(['-', ' '], '_', $snakeName);
+        
+        // If table name is provided, use it as-is (it's already been calculated correctly)
+        // Otherwise try to extract from migration name
+        if ($tableName === null) {
+            $tableName = $snakeName;
+            if (preg_match('/create_(.+)_table/', $snakeName, $matches)) {
+                $tableName = $matches[1];
+            } elseif (preg_match('/add_(.+)_to_(.+)_table/', $snakeName, $matches)) {
+                $tableName = $matches[2];
+            } elseif (preg_match('/drop_(.+)_from_(.+)_table/', $snakeName, $matches)) {
+                $tableName = $matches[2];
+            }
+        }
+        // $tableName is already in the correct format if provided
+        
+        $fileName = $timestamp . '_' . $snakeName . '.php';
+        $filePath = $migrationPath . '/' . $fileName;
+        
+        if (file_exists($filePath)) {
+            echo "Error: Migration {$fileName} already exists.\n";
+            return false;
+        }
+        
+        $stub = file_get_contents(__DIR__ . '/stubs/migration.stub');
+        $stub = str_replace('{{TABLE_NAME}}', $tableName, $stub);
+        
+        file_put_contents($filePath, $stub);
+        echo "✓ Migration created: {$filePath}\n";
+        return true;
     };
     
     if ($makeType === 'controller') {
@@ -261,6 +854,48 @@ if ($command === 'key:generate') {
         file_put_contents($filePath, $stub);
         echo "✓ Controller created: {$filePath}\n";
         
+        // Handle flags: -m (model), -d (migration)
+        // Handle options: --model=NAME
+        if (isset($flags['m']) || isset($options['model'])) {
+            $modelName = $options['model'] ?? $name;
+            // Remove "Controller" suffix if present for model name
+            if (str_ends_with($modelName, 'Controller')) {
+                $modelName = substr($modelName, 0, -10);
+            }
+            $createModel($modelName);
+        }
+        
+        if (isset($flags['d']) || isset($options['migration'])) {
+            $migrationName = $options['migration'] ?? 'create_' . strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $name)) . '_table';
+            // Remove "Controller" suffix if present
+            if (str_ends_with($migrationName, '_controller')) {
+                $migrationName = substr($migrationName, 0, -11);
+            }
+            // Extract table name from model name if model was created, otherwise from controller name
+            $tableName = null;
+            if (isset($flags['m']) || isset($options['model'])) {
+                $modelNameForTable = $options['model'] ?? $name;
+                if (str_ends_with($modelNameForTable, 'Controller')) {
+                    $modelNameForTable = substr($modelNameForTable, 0, -10);
+                }
+                $tableName = $toTableName($toClassName($modelNameForTable));
+                if (!str_ends_with($tableName, 's')) {
+                    $tableName .= 's';
+                }
+            } else {
+                // Extract from controller name
+                $controllerNameForTable = $name;
+                if (str_ends_with($controllerNameForTable, 'Controller')) {
+                    $controllerNameForTable = substr($controllerNameForTable, 0, -10);
+                }
+                $tableName = $toTableName($toClassName($controllerNameForTable));
+                if (!str_ends_with($tableName, 's')) {
+                    $tableName .= 's';
+                }
+            }
+            $createMigration($migrationName, $tableName);
+        }
+        
     } elseif ($makeType === 'model') {
         $className = $toClassName($name);
         $modelPath = __DIR__ . '/src/Models';
@@ -283,6 +918,18 @@ if ($command === 'key:generate') {
         
         file_put_contents($filePath, $stub);
         echo "✓ Model created: {$filePath}\n";
+        
+        // Handle flags: -c (controller), -m (migration)
+        // Handle options: --controller=NAME
+        if (isset($flags['c']) || isset($options['controller'])) {
+            $controllerName = $options['controller'] ?? $name . 'Controller';
+            $createController($controllerName, $name);
+        }
+        
+        if (isset($flags['m']) || isset($options['migration'])) {
+            $migrationName = $options['migration'] ?? 'create_' . strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $name)) . '_table';
+            $createMigration($migrationName, $tableName);
+        }
         
     } elseif ($makeType === 'middleware') {
         $className = $toClassName($name);
