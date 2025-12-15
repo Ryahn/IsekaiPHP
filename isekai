@@ -34,6 +34,7 @@ if ($argc < 2) {
     echo "  migrate:fresh                   - Drop all tables and re-run migrations\n";
     echo "  db:backup [options]              - Backup the database\n";
     echo "    Options: --file=, --max=N, --tables=table1,table2, --compression=zip|tar, --docker\n";
+    echo "  db:seed [class]                  - Run database seeds (all or specific class)\n";
     echo "  serve [--host=] [--port=]       - Start the development server\n\n";
     echo "  make:controller <name> [options] - Create a new controller class\n";
     echo "    Options: -m (model), -d (migration), --model=NAME, --migration=NAME\n";
@@ -43,7 +44,8 @@ if ($argc < 2) {
     echo "  make:migration <name>           - Create a new migration file\n";
     echo "  make:request <name>             - Create a new form request class\n";
     echo "  make:event <name>               - Create a new event class\n";
-    echo "  make:listener <name> [--event=] - Create a new event listener class\n\n";
+    echo "  make:listener <name> [--event=] - Create a new event listener class\n";
+    echo "  make:seed <name>                - Create a new database seed class\n\n";
     echo "  module:make <name>              - Create a new module\n";
     echo "  module:list                     - List all modules\n";
     echo "  module:enable <name>             - Enable a module\n";
@@ -660,6 +662,132 @@ if ($command === 'key:generate') {
         echo "✓ Backup created successfully: {$finalOutputFile}\n";
         echo "  Size: {$fileSizeFormatted}\n";
     }
+} elseif ($command === 'db:seed') {
+    // Bootstrap full application for facades and other services
+    require_once __DIR__ . '/vendor/autoload.php';
+    require_once __DIR__ . '/src/Core/helpers.php';
+    $app = new \IsekaiPHP\Core\Application(__DIR__);
+    
+    // Set up Laravel facades with Illuminate container for compatibility
+    if (class_exists('Illuminate\Support\Facades\Facade')) {
+        $illuminateContainer = new \Illuminate\Container\Container();
+        
+        // Register hash service for Hash facade
+        $illuminateContainer->singleton('hash', function() {
+            return new class {
+                public function make($value, array $options = []) {
+                    return password_hash($value, PASSWORD_BCRYPT, $options);
+                }
+                public function check($value, $hashedValue, array $options = []) {
+                    return password_verify($value, $hashedValue);
+                }
+            };
+        });
+        
+        \Illuminate\Support\Facades\Facade::setFacadeApplication($illuminateContainer);
+    }
+    
+    $seedsPath = __DIR__ . '/database/seeds';
+    
+    if (!is_dir($seedsPath)) {
+        echo "Error: Seeds directory not found at {$seedsPath}\n";
+        exit(1);
+    }
+    
+    // Get specific seed class if provided
+    $specificSeed = $argv[2] ?? null;
+    
+    if ($specificSeed) {
+        // Run specific seed class
+        $seedName = $specificSeed;
+        // Remove .php extension if present
+        if (str_ends_with($seedName, '.php')) {
+            $seedName = substr($seedName, 0, -4);
+        }
+        // Convert to class name format
+        $toClassName = function($name) {
+            return str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
+        };
+        $className = $toClassName($seedName);
+        
+        $seedFile = $seedsPath . '/' . $className . '.php';
+        
+        if (!file_exists($seedFile)) {
+            // Try with original name
+            $seedFile = $seedsPath . '/' . $seedName . '.php';
+            if (!file_exists($seedFile)) {
+                echo "Error: Seed class {$className} not found.\n";
+                exit(1);
+            }
+            $className = $seedName;
+        }
+        
+        echo "Running seed: {$className}...\n";
+        
+        try {
+            require_once $seedFile;
+            $fullClassName = 'Database\\Seeds\\' . $className;
+            
+            if (!class_exists($fullClassName)) {
+                echo "Error: Class {$fullClassName} not found in {$seedFile}\n";
+                exit(1);
+            }
+            
+            $seed = new $fullClassName();
+            $seed->run();
+            
+            echo "  ✓ {$className}\n";
+        } catch (\Exception $e) {
+            echo "  ✗ Error: {$e->getMessage()}\n";
+            exit(1);
+        }
+    } else {
+        // Run all seeds
+        $seedFiles = glob($seedsPath . '/*.php');
+        
+        if (empty($seedFiles)) {
+            echo "No seeds found.\n";
+            exit(0);
+        }
+        
+        // Sort seed files alphabetically
+        sort($seedFiles);
+        
+        echo "Running database seeds...\n\n";
+        
+        $runCount = 0;
+        
+        foreach ($seedFiles as $seedFile) {
+            $className = basename($seedFile, '.php');
+            
+            echo "Running seed: {$className}...\n";
+            
+            try {
+                require_once $seedFile;
+                $fullClassName = 'Database\\Seeds\\' . $className;
+                
+                if (!class_exists($fullClassName)) {
+                    echo "  ⚠ Warning: Class {$fullClassName} not found, skipping.\n\n";
+                    continue;
+                }
+                
+                $seed = new $fullClassName();
+                $seed->run();
+                
+                echo "  ✓ {$className}\n\n";
+                $runCount++;
+            } catch (\Exception $e) {
+                echo "  ✗ Error: {$e->getMessage()}\n\n";
+                exit(1);
+            }
+        }
+        
+        if ($runCount === 0) {
+            echo "No seeds were run.\n";
+        } else {
+            echo "✓ Ran {$runCount} seed(s)\n";
+        }
+    }
 } elseif ($command === 'serve') {
     $host = '127.0.0.1';
     $port = 8000;
@@ -674,10 +802,44 @@ if ($command === 'key:generate') {
     }
     
     $publicPath = __DIR__ . '/public';
-    $routerPath = $publicPath . '/index.php';
+    $routerPath = $publicPath . '/router.php';
     
+    // Create router.php if it doesn't exist
     if (!file_exists($routerPath)) {
-        echo "Error: Public index.php not found at {$routerPath}\n";
+        $routerContent = <<<'PHP'
+<?php
+/**
+ * Router script for PHP built-in server
+ * 
+ * This script handles static file serving and routes non-existent files
+ * through the application.
+ */
+
+$uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+
+// Get the requested file path
+$requestedFile = __DIR__ . $uri;
+
+// If the requested file exists and is a static file, serve it directly
+if ($uri !== '/' && file_exists($requestedFile) && is_file($requestedFile)) {
+    // Check if it's a static file (not PHP)
+    $extension = strtolower(pathinfo($requestedFile, PATHINFO_EXTENSION));
+    $staticExtensions = ['js', 'css', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'woff', 'woff2', 'ttf', 'eot', 'json', 'xml', 'txt', 'pdf', 'zip'];
+    
+    if (in_array($extension, $staticExtensions)) {
+        // Let PHP built-in server handle it
+        return false;
+    }
+}
+
+// Route through the application
+require_once __DIR__ . '/index.php';
+PHP;
+        file_put_contents($routerPath, $routerContent);
+    }
+    
+    if (!file_exists($publicPath . '/index.php')) {
+        echo "Error: Public index.php not found at {$publicPath}/index.php\n";
         exit(1);
     }
     
@@ -1447,9 +1609,30 @@ if ($command === 'key:generate') {
         file_put_contents($filePath, $stub);
         echo "✓ Listener created: {$filePath}\n";
         
+    } elseif ($makeType === 'seed') {
+        $className = $toClassName($name);
+        $seedPath = __DIR__ . '/database/seeds';
+        
+        if (!is_dir($seedPath)) {
+            mkdir($seedPath, 0755, true);
+        }
+        
+        $filePath = $seedPath . '/' . $className . '.php';
+        
+        if (file_exists($filePath)) {
+            echo "Error: Seed {$className} already exists.\n";
+            exit(1);
+        }
+        
+        $stub = file_get_contents(__DIR__ . '/stubs/seed.stub');
+        $stub = str_replace('{{CLASS_NAME}}', $className, $stub);
+        
+        file_put_contents($filePath, $stub);
+        echo "✓ Seed created: {$filePath}\n";
+        
     } else {
         echo "Error: Unknown make command: make:{$makeType}\n";
-        echo "Available make commands: make:controller, make:model, make:middleware, make:migration, make:request, make:event, make:listener\n";
+        echo "Available make commands: make:controller, make:model, make:middleware, make:migration, make:request, make:event, make:listener, make:seed\n";
         exit(1);
     }
 } else {

@@ -22,14 +22,18 @@ class Route
      */
     public function matches(string $uri, ?array &$params = null): bool
     {
-        $pattern = preg_replace('/\{([^}]+)\}/', '([^/]+)', $this->uri);
+        // Normalize URIs for comparison (handle trailing slashes)
+        $routeUri = $this->uri !== '/' ? rtrim($this->uri, '/') : $this->uri;
+        $matchUri = $uri !== '/' ? rtrim($uri, '/') : $uri;
+        
+        $pattern = preg_replace('/\{([^}]+)\}/', '([^/]+)', $routeUri);
         $pattern = '#^' . $pattern . '$#';
 
-        if (preg_match($pattern, $uri, $matches)) {
+        if (preg_match($pattern, $matchUri, $matches)) {
             array_shift($matches);
 
             // Extract parameter names
-            preg_match_all('/\{([^}]+)\}/', $this->uri, $paramNames);
+            preg_match_all('/\{([^}]+)\}/', $routeUri, $paramNames);
             $paramNames = $paramNames[1];
 
             $params = [];

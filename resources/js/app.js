@@ -1,6 +1,8 @@
-// Import jQuery
-import $ from 'jquery';
-window.$ = window.jQuery = $;
+// jQuery is loaded globally from public/assets/js/jquery-3.7.1.min.js
+// Ensure it's available
+if (typeof window.$ === 'undefined' && typeof window.jQuery === 'undefined') {
+    console.error('jQuery is not loaded. Please ensure jquery-3.7.1.min.js is loaded before this script.');
+}
 
 // Import Bootstrap
 import 'bootstrap';
@@ -9,8 +11,9 @@ import 'bootstrap';
 import 'datatables.net';
 import 'datatables.net-responsive';
 
-// Import Toastr
+// Import Toastr and make it globally available
 import toastr from 'toastr';
+window.toastr = toastr;
 import 'toastr/build/toastr.min.css';
 
 // Import FontAwesome

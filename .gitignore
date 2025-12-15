@@ -27,6 +27,12 @@ modules/*/composer.lock
 # Composer
 composer.lock
 
+# Node
+node_modules/
+
+# Build
+public/build/
+
 # Logs
 *.log
 logs/

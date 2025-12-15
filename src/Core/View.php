@@ -91,6 +91,8 @@ class View
                 $auth = new Authentication();
                 return $auth->user();
             });
+            // Share request instance with views
+            $view->with('request', \IsekaiPHP\Http\Request::createFromGlobals());
         });
 
         self::$factory = $factory;

@@ -105,6 +105,10 @@ class Application
 
         // Initialize and load modules
         $this->moduleManager = new ModuleManager($this->container, $this->basePath);
+        
+        // Bind ModuleManager as instance so it can be injected
+        $this->container->instance(ModuleManager::class, $this->moduleManager);
+        
         $this->moduleManager->discover();
         $this->moduleManager->loadModules();
         $this->moduleManager->loadModuleConfigs();
@@ -113,6 +117,22 @@ class Application
         $this->moduleManager->registerMiddleware($this->router);
         // Module extensions are registered during loadModules() via registerModuleExtensions()
 
+        // Bind SettingsService and ModuleInstaller to container
+        $this->container->singleton(SettingsService::class, function () {
+            return new SettingsService();
+        });
+        $this->container->singleton(ModuleInstaller::class, function () {
+            return new ModuleInstaller($this->basePath);
+        });
+
+        // Load settings from database (after database is initialized)
+        try {
+            $settingsService = $this->container->make(SettingsService::class);
+            $settingsService->loadSettings();
+        } catch (\Exception $e) {
+            // Settings table might not exist yet, ignore
+        }
+
         // Register routes
         if (file_exists($this->basePath . '/routes/web.php')) {
             require $this->basePath . '/routes/web.php';
@@ -120,6 +140,11 @@ class Application
 
         if (file_exists($this->basePath . '/routes/api.php')) {
             require $this->basePath . '/routes/api.php';
+        }
+
+        // Register admin routes after web routes (so admin routes are available)
+        if (file_exists($this->basePath . '/routes/admin.php')) {
+            require $this->basePath . '/routes/admin.php';
         }
     }
 
