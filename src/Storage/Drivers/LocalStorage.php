@@ -17,7 +17,7 @@ class LocalStorage implements StorageInterface
         $this->root = rtrim($config['root'] ?? storage_path('app'), '/');
         $this->url = $config['url'] ?? '/storage';
 
-        if (!is_dir($this->root)) {
+        if (! is_dir($this->root)) {
             mkdir($this->root, 0755, true);
         }
     }
@@ -28,6 +28,7 @@ class LocalStorage implements StorageInterface
     protected function path(string $path): string
     {
         $path = ltrim($path, '/');
+
         return $this->root . '/' . $path;
     }
 
@@ -39,7 +40,7 @@ class LocalStorage implements StorageInterface
         $fullPath = $this->path($path);
         $dir = dirname($fullPath);
 
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 
@@ -57,7 +58,7 @@ class LocalStorage implements StorageInterface
     {
         $fullPath = $this->path($path);
 
-        if (!file_exists($fullPath)) {
+        if (! file_exists($fullPath)) {
             return null;
         }
 
@@ -95,7 +96,7 @@ class LocalStorage implements StorageInterface
      */
     protected function deleteDirectory(string $directory): bool
     {
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             return false;
         }
 
@@ -118,7 +119,7 @@ class LocalStorage implements StorageInterface
         $toPath = $this->path($to);
         $toDir = dirname($toPath);
 
-        if (!is_dir($toDir)) {
+        if (! is_dir($toDir)) {
             mkdir($toDir, 0755, true);
         }
 
@@ -143,6 +144,7 @@ class LocalStorage implements StorageInterface
     public function size(string $path): int
     {
         $fullPath = $this->path($path);
+
         return file_exists($fullPath) ? filesize($fullPath) : 0;
     }
 
@@ -152,7 +154,7 @@ class LocalStorage implements StorageInterface
     public function url(string $path): string
     {
         $path = ltrim($path, '/');
+
         return rtrim($this->url, '/') . '/' . $path;
     }
 }
-

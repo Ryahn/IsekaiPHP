@@ -6,7 +6,7 @@ use IsekaiPHP\Http\Router;
 
 /**
  * Base Module Class
- * 
+ *
  * All modules must extend this class and implement the required methods.
  */
 abstract class Module
@@ -90,7 +90,7 @@ abstract class Module
 
     /**
      * Register the module
-     * 
+     *
      * Called when the module is first loaded.
      * Override this to register services, routes, etc.
      */
@@ -101,7 +101,7 @@ abstract class Module
 
     /**
      * Boot the module
-     * 
+     *
      * Called after all modules are registered.
      * Override this for initialization that depends on other modules.
      */
@@ -116,6 +116,7 @@ abstract class Module
     public function getRoutesPath(string $type = 'web'): ?string
     {
         $routesPath = $this->path . '/routes/' . $type . '.php';
+
         return file_exists($routesPath) ? $routesPath : null;
     }
 
@@ -125,6 +126,7 @@ abstract class Module
     public function getViewsPath(): string
     {
         $viewsPath = $this->path . '/views';
+
         return is_dir($viewsPath) ? $viewsPath : $this->path;
     }
 
@@ -134,6 +136,7 @@ abstract class Module
     public function getMigrationsPath(): string
     {
         $migrationsPath = $this->path . '/migrations';
+
         return is_dir($migrationsPath) ? $migrationsPath : $this->path;
     }
 
@@ -143,6 +146,7 @@ abstract class Module
     public function getAssetsPath(): string
     {
         $assetsPath = $this->path . '/assets';
+
         return is_dir($assetsPath) ? $assetsPath : $this->path;
     }
 
@@ -152,6 +156,7 @@ abstract class Module
     public function getConfigPath(): string
     {
         $configPath = $this->path . '/config';
+
         return is_dir($configPath) ? $configPath : $this->path;
     }
 
@@ -181,10 +186,11 @@ abstract class Module
 
     /**
      * Get admin menu items for this module
-     * 
+     *
      * Override this method in your module to register admin menu items.
-     * 
-     * @return array Array of menu items with keys: label, url, icon (optional), order (optional), children (optional), permission (optional)
+     *
+     * @return array Array of menu items with keys: label, url, icon (optional),
+     *               order (optional), children (optional), permission (optional)
      */
     public function getAdminMenuItems(): array
     {
@@ -193,9 +199,9 @@ abstract class Module
 
     /**
      * Get admin settings pages for this module
-     * 
+     *
      * Override this method in your module to register admin settings pages.
-     * 
+     *
      * @return array Array of settings page definitions
      */
     public function getAdminSettingsPages(): array
@@ -205,10 +211,10 @@ abstract class Module
 
     /**
      * Register admin routes for this module
-     * 
+     *
      * Override this method in your module to register admin-specific routes.
      * The router passed here will be scoped to the admin area.
-     * 
+     *
      * @param Container $container
      * @param Router $router
      * @return void
@@ -218,4 +224,3 @@ abstract class Module
         // Override in child classes
     }
 }
-

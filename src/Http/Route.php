@@ -25,7 +25,7 @@ class Route
         // Normalize URIs for comparison (handle trailing slashes)
         $routeUri = $this->uri !== '/' ? rtrim($this->uri, '/') : $this->uri;
         $matchUri = $uri !== '/' ? rtrim($uri, '/') : $uri;
-        
+
         $pattern = preg_replace('/\{([^}]+)\}/', '([^/]+)', $routeUri);
         $pattern = '#^' . $pattern . '$#';
 
@@ -91,6 +91,7 @@ class Route
         } else {
             $this->middleware[] = $middleware;
         }
+
         return $this;
     }
 }

@@ -22,8 +22,8 @@ class RedisCache implements CacheInterface
                 $host = $config['host'] ?? '127.0.0.1';
                 $port = $config['port'] ?? 6379;
                 $timeout = $config['timeout'] ?? 0;
-                
-                if (!$this->redis->connect($host, $port, $timeout)) {
+
+                if (! $this->redis->connect($host, $port, $timeout)) {
                     $this->redis = null;
                 }
 
@@ -53,7 +53,7 @@ class RedisCache implements CacheInterface
      */
     public function get(string $key, $default = null)
     {
-        if (!$this->isAvailable()) {
+        if (! $this->isAvailable()) {
             return $default;
         }
 
@@ -71,7 +71,7 @@ class RedisCache implements CacheInterface
      */
     public function put(string $key, $value, ?int $ttl = null): bool
     {
-        if (!$this->isAvailable()) {
+        if (! $this->isAvailable()) {
             return false;
         }
 
@@ -89,7 +89,7 @@ class RedisCache implements CacheInterface
      */
     public function add(string $key, $value, ?int $ttl = null): bool
     {
-        if (!$this->isAvailable()) {
+        if (! $this->isAvailable()) {
             return false;
         }
 
@@ -105,7 +105,7 @@ class RedisCache implements CacheInterface
      */
     public function forget(string $key): bool
     {
-        if (!$this->isAvailable()) {
+        if (! $this->isAvailable()) {
             return false;
         }
 
@@ -117,7 +117,7 @@ class RedisCache implements CacheInterface
      */
     public function flush(): bool
     {
-        if (!$this->isAvailable()) {
+        if (! $this->isAvailable()) {
             return false;
         }
 
@@ -129,11 +129,10 @@ class RedisCache implements CacheInterface
      */
     public function has(string $key): bool
     {
-        if (!$this->isAvailable()) {
+        if (! $this->isAvailable()) {
             return false;
         }
 
         return $this->redis->exists($key) > 0;
     }
 }
-

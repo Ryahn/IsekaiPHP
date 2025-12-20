@@ -2,11 +2,9 @@
 
 namespace IsekaiPHP\Cache;
 
-use IsekaiPHP\Core\Config;
-
 /**
  * Cache Manager
- * 
+ *
  * Manages cache operations with multiple drivers.
  */
 class CacheManager
@@ -37,7 +35,7 @@ class CacheManager
     {
         $driver = $driver ?? $this->defaultDriver;
 
-        if (!isset($this->drivers[$driver])) {
+        if (! isset($this->drivers[$driver])) {
             $this->drivers[$driver] = $this->createDriver($driver);
         }
 
@@ -133,4 +131,3 @@ class CacheManager
         return $this->driver()->has($key);
     }
 }
-

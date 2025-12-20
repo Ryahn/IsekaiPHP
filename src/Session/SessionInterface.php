@@ -12,4 +12,3 @@ interface SessionInterface
      */
     public function start(): void;
 }
-

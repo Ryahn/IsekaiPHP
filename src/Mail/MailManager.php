@@ -6,7 +6,7 @@ use IsekaiPHP\Core\Config;
 
 /**
  * Mail Manager
- * 
+ *
  * Manages email sending with multiple drivers.
  */
 class MailManager
@@ -37,7 +37,7 @@ class MailManager
     {
         $driver = $driver ?? $this->defaultDriver;
 
-        if (!isset($this->drivers[$driver])) {
+        if (! isset($this->drivers[$driver])) {
             $this->drivers[$driver] = $this->createDriver($driver);
         }
 
@@ -82,7 +82,7 @@ class MailManager
     public function sendView(string $to, string $subject, string $view, array $data = [], array $options = []): bool
     {
         $message = \IsekaiPHP\Core\View::render($view, $data);
+
         return $this->send($to, $subject, $message, $options);
     }
 }
-

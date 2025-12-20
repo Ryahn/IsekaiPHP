@@ -2,8 +2,8 @@
 
 namespace IsekaiPHP\Http\Controllers\Admin;
 
-use IsekaiPHP\Core\ModuleManager;
 use IsekaiPHP\Core\ModuleInstaller;
+use IsekaiPHP\Core\ModuleManager;
 use IsekaiPHP\Http\Controller;
 use IsekaiPHP\Http\Request;
 use IsekaiPHP\Http\Response;
@@ -76,7 +76,7 @@ class ModulesController extends Controller
             'zip_file' => 'required',
         ]);
 
-        if (!$request->hasFile('zip_file')) {
+        if (! $request->hasFile('zip_file')) {
             return $this->redirect('/admin/modules/install');
         }
 
@@ -84,7 +84,7 @@ class ModulesController extends Controller
 
         // Handle Symfony UploadedFile
         if ($file instanceof \Symfony\Component\HttpFoundation\File\UploadedFile) {
-            if (!$file->isValid()) {
+            if (! $file->isValid()) {
                 return $this->redirect('/admin/modules/install');
             }
 
@@ -99,7 +99,7 @@ class ModulesController extends Controller
             $file->move(sys_get_temp_dir(), basename($tempPath));
         } else {
             // Handle PHP $_FILES array format
-            if (!isset($_FILES['zip_file']) || $_FILES['zip_file']['error'] !== UPLOAD_ERR_OK) {
+            if (! isset($_FILES['zip_file']) || $_FILES['zip_file']['error'] !== UPLOAD_ERR_OK) {
                 return $this->redirect('/admin/modules/install');
             }
 
@@ -126,6 +126,7 @@ class ModulesController extends Controller
         } catch (\Exception $e) {
             // Cleanup temp file on error
             @unlink($tempPath);
+
             return $this->redirect('/admin/modules/install');
         }
     }
@@ -137,20 +138,20 @@ class ModulesController extends Controller
     {
         // Get module name from route parameter
         $moduleName = $request->attributes->get('moduleName');
-        
+
         try {
             $this->moduleManager->enableModule($moduleName);
-            
+
             if ($request->expectsJson()) {
                 return $this->json(['success' => true, 'message' => 'Module enabled']);
             }
-            
+
             return $this->redirect('/admin/modules');
         } catch (\Exception $e) {
             if ($request->expectsJson()) {
                 return $this->json(['success' => false, 'message' => $e->getMessage()], 400);
             }
-            
+
             return $this->redirect('/admin/modules');
         }
     }
@@ -162,20 +163,20 @@ class ModulesController extends Controller
     {
         // Get module name from route parameter
         $moduleName = $request->attributes->get('moduleName');
-        
+
         try {
             $this->moduleManager->disableModule($moduleName);
-            
+
             if ($request->expectsJson()) {
                 return $this->json(['success' => true, 'message' => 'Module disabled']);
             }
-            
+
             return $this->redirect('/admin/modules');
         } catch (\Exception $e) {
             if ($request->expectsJson()) {
                 return $this->json(['success' => false, 'message' => $e->getMessage()], 400);
             }
-            
+
             return $this->redirect('/admin/modules');
         }
     }
@@ -187,19 +188,18 @@ class ModulesController extends Controller
     {
         try {
             $this->moduleManager->disableAllModules();
-            
+
             if ($request->expectsJson()) {
                 return $this->json(['success' => true, 'message' => 'All modules disabled']);
             }
-            
+
             return $this->redirect('/admin/modules');
         } catch (\Exception $e) {
             if ($request->expectsJson()) {
                 return $this->json(['success' => false, 'message' => $e->getMessage()], 400);
             }
-            
+
             return $this->redirect('/admin/modules');
         }
     }
 }
-

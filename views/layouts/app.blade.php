@@ -5,7 +5,13 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5, user-scalable=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'IsekaiPHP')</title>
+    @php
+        $pageTitle = 'IsekaiPHP';
+        if (isset($settingsService) && is_object($settingsService) && method_exists($settingsService, 'get')) {
+            $pageTitle = $settingsService->get('app.name') ?: $settingsService->get('app_name') ?: 'IsekaiPHP';
+        }
+    @endphp
+    <title>@yield('title', $pageTitle)</title>
     
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
@@ -18,7 +24,15 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="/">IsekaiPHP</a>
+            <a class="navbar-brand" href="/">
+                @php
+                    $appName = 'IsekaiPHP';
+                    if (isset($settingsService) && is_object($settingsService) && method_exists($settingsService, 'get')) {
+                        $appName = $settingsService->get('app.name') ?: $settingsService->get('app_name') ?: 'IsekaiPHP';
+                    }
+                @endphp
+                {{ $appName }}
+            </a>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -49,7 +63,15 @@
     </div>
 
     <script>
-        window.siteUrl = "{{ env('APP_URL', 'http://localhost') }}";
+        @php
+            $siteUrl = 'http://localhost';
+            if (isset($settingsService) && is_object($settingsService) && method_exists($settingsService, 'get')) {
+                $siteUrl = $settingsService->get('app.url') ?: $settingsService->get('app_url') ?: env('APP_URL', 'http://localhost');
+            } else {
+                $siteUrl = env('APP_URL', 'http://localhost');
+            }
+        @endphp
+        window.siteUrl = "{{ $siteUrl }}";
     </script>
     
     @stack('scripts')

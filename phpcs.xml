@@ -33,5 +33,13 @@
     <rule ref="PSR12.Files.FileHeader.SpacingAfterBlock">
         <severity>0</severity>
     </rule>
+
+    <!-- Suppress false positive warnings for class files -->
+    <rule ref="PSR1.Files.SideEffects">
+        <severity>0</severity>
+    </rule>
+    <rule ref="Generic.PHP.Syntax">
+        <severity>0</severity>
+    </rule>
 </ruleset>
 

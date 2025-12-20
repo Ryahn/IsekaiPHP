@@ -4,7 +4,7 @@ namespace IsekaiPHP\Http\Resources;
 
 /**
  * API Resource
- * 
+ *
  * Transforms data for API responses.
  */
 abstract class Resource
@@ -71,4 +71,3 @@ abstract class Resource
         return false;
     }
 }
-

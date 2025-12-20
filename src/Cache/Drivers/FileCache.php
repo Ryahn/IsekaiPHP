@@ -17,7 +17,7 @@ class FileCache implements CacheInterface
         $this->path = $config['path'] ?? sys_get_temp_dir() . '/isekaiphp_cache';
         $this->defaultTtl = $config['ttl'] ?? 3600;
 
-        if (!is_dir($this->path)) {
+        if (! is_dir($this->path)) {
             mkdir($this->path, 0755, true);
         }
     }
@@ -28,6 +28,7 @@ class FileCache implements CacheInterface
     protected function getPath(string $key): string
     {
         $hash = md5($key);
+
         return $this->path . '/' . substr($hash, 0, 2) . '/' . substr($hash, 2) . '.cache';
     }
 
@@ -38,7 +39,7 @@ class FileCache implements CacheInterface
     {
         $file = $this->getPath($key);
 
-        if (!file_exists($file)) {
+        if (! file_exists($file)) {
             return $default;
         }
 
@@ -51,6 +52,7 @@ class FileCache implements CacheInterface
         // Check if expired
         if (isset($data['expires']) && $data['expires'] < time()) {
             $this->forget($key);
+
             return $default;
         }
 
@@ -65,7 +67,7 @@ class FileCache implements CacheInterface
         $file = $this->getPath($key);
         $dir = dirname($file);
 
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 
@@ -132,7 +134,7 @@ class FileCache implements CacheInterface
     {
         $file = $this->getPath($key);
 
-        if (!file_exists($file)) {
+        if (! file_exists($file)) {
             return false;
         }
 
@@ -145,10 +147,10 @@ class FileCache implements CacheInterface
         // Check if expired
         if (isset($data['expires']) && $data['expires'] < time()) {
             $this->forget($key);
+
             return false;
         }
 
         return true;
     }
 }
-

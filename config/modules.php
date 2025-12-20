@@ -1,9 +1,9 @@
 <?php
 
-return array (
+return  [
   'route_prefix' => 'modules',
-  'disabled' => 
-  array (
-  ),
+  'disabled' =>
+   [
+  ],
   'auto_install_dependencies' => true,
-);
+];

@@ -36,7 +36,7 @@ class SmtpMail implements MailInterface
         $headers = [];
         $headers[] = 'MIME-Version: 1.0';
         $headers[] = 'Content-Type: text/html; charset=UTF-8';
-        
+
         if ($fromName) {
             $headers[] = "From: {$fromName} <{$from}>";
         } else {
@@ -58,4 +58,3 @@ class SmtpMail implements MailInterface
         return implode("\r\n", $headers);
     }
 }
-

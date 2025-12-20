@@ -2,8 +2,8 @@
 
 namespace IsekaiPHP\Session\Drivers;
 
-use IsekaiPHP\Session\SessionInterface;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use IsekaiPHP\Session\SessionInterface;
 
 /**
  * Database Session Driver
@@ -82,4 +82,3 @@ class DatabaseSession implements SessionInterface
             ->delete();
     }
 }
-

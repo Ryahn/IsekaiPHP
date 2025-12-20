@@ -6,7 +6,7 @@ use IsekaiPHP\Core\Config;
 
 /**
  * Storage Manager
- * 
+ *
  * Manages file storage operations with multiple drivers.
  */
 class StorageManager
@@ -37,7 +37,7 @@ class StorageManager
     {
         $disk = $disk ?? $this->defaultDisk;
 
-        if (!isset($this->disks[$disk])) {
+        if (! isset($this->disks[$disk])) {
             $this->disks[$disk] = $this->createDisk($disk);
         }
 
@@ -132,4 +132,3 @@ class StorageManager
         return $this->disk($disk)->url($path);
     }
 }
-

@@ -47,4 +47,3 @@ interface StorageInterface
      */
     public function url(string $path): string;
 }
-

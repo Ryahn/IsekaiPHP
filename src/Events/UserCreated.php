@@ -12,4 +12,3 @@ class UserCreated extends Event
         parent::__construct($data);
     }
 }
-

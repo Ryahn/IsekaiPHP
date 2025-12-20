@@ -32,13 +32,13 @@ class Response extends SymfonyResponse
     public function send(): static
     {
         // Set default content type if not set
-        if (!$this->headers->has('Content-Type')) {
+        if (! $this->headers->has('Content-Type')) {
             $this->headers->set('Content-Type', 'text/html; charset=UTF-8');
         }
 
         $this->sendHeaders();
         $this->sendContent();
-        
+
         return $this;
     }
 

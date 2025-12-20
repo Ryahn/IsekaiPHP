@@ -2,8 +2,6 @@
 
 namespace IsekaiPHP\Http\Requests;
 
-use IsekaiPHP\Http\Requests\FormRequest;
-
 class StoreUserRequest extends FormRequest
 {
     /**
@@ -34,4 +32,3 @@ class StoreUserRequest extends FormRequest
         ];
     }
 }
-

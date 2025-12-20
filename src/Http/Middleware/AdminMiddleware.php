@@ -24,10 +24,11 @@ class AdminMiddleware
     public function handle(Request $request, \Closure $next): Response
     {
         // Check if user is authenticated
-        if (!$this->auth->check()) {
+        if (! $this->auth->check()) {
             if ($request->expectsJson()) {
                 return Response::json(['error' => 'Unauthorized'], 401);
             }
+
             return Response::redirect('/login');
         }
 
@@ -37,10 +38,11 @@ class AdminMiddleware
             $checker = $this->container->make('admin.permission.checker');
             if (is_callable($checker)) {
                 $hasPermission = call_user_func($checker, $this->auth->user());
-                if (!$hasPermission) {
+                if (! $hasPermission) {
                     if ($request->expectsJson()) {
                         return Response::json(['error' => 'Forbidden'], 403);
                     }
+
                     return new Response('Forbidden', 403);
                 }
             }
@@ -51,4 +53,3 @@ class AdminMiddleware
         return $next($request);
     }
 }
-

@@ -18,4 +18,3 @@ class AdminController extends Controller
         ]);
     }
 }
-

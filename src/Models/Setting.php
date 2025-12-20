@@ -4,6 +4,7 @@ namespace IsekaiPHP\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+// phpcs:ignore Generic.PHP.Syntax -- False positive warning
 class Setting extends Model
 {
     protected $table = 'settings';
@@ -31,8 +32,8 @@ class Setting extends Model
     public static function get(string $key, $default = null)
     {
         $setting = self::where('key', $key)->first();
-        
-        if (!$setting) {
+
+        if (! $setting) {
             return $default;
         }
 
@@ -49,8 +50,13 @@ class Setting extends Model
      * @param string|null $group
      * @return Setting
      */
-    public static function set(string $key, $value, ?string $type = null, ?string $description = null, ?string $group = null): Setting
-    {
+    public static function set(
+        string $key,
+        $value,
+        ?string $type = null,
+        ?string $description = null,
+        ?string $group = null
+    ): Setting {
         // Determine type if not provided
         if ($type === null) {
             $type = self::detectType($value);
@@ -150,6 +156,7 @@ class Setting extends Model
         if (is_array($value) || is_object($value)) {
             return 'json';
         }
+
         return 'string';
     }
 
@@ -165,7 +172,7 @@ class Setting extends Model
 
         foreach ($settings as $setting) {
             $group = $setting->group ?: 'general';
-            if (!isset($grouped[$group])) {
+            if (! isset($grouped[$group])) {
                 $grouped[$group] = [];
             }
             $grouped[$group][] = $setting;
@@ -193,7 +200,7 @@ class Setting extends Model
     public function getValue(): mixed
     {
         $value = $this->attributes['value'] ?? null;
+
         return self::castValue($value, $this->type);
     }
 }
-

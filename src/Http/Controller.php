@@ -75,45 +75,50 @@ abstract class Controller
                         if (empty($value) && $value !== '0') {
                             $errors[$field][] = "The {$field} field is required.";
                         }
+
                         break;
 
                     case 'email':
-                        if (!empty($value) && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                        if (! empty($value) && ! filter_var($value, FILTER_VALIDATE_EMAIL)) {
                             $errors[$field][] = "The {$field} must be a valid email address.";
                         }
+
                         break;
 
                     case 'min':
-                        if (!empty($value) && strlen($value) < (int)$ruleValue) {
+                        if (! empty($value) && strlen($value) < (int)$ruleValue) {
                             $errors[$field][] = "The {$field} must be at least {$ruleValue} characters.";
                         }
+
                         break;
 
                     case 'max':
-                        if (!empty($value) && strlen($value) > (int)$ruleValue) {
+                        if (! empty($value) && strlen($value) > (int)$ruleValue) {
                             $errors[$field][] = "The {$field} may not be greater than {$ruleValue} characters.";
                         }
+
                         break;
 
                     case 'confirmed':
                         $confirmField = $field . '_confirmation';
-                        if (!isset($data[$confirmField]) || $value !== $data[$confirmField]) {
+                        if (! isset($data[$confirmField]) || $value !== $data[$confirmField]) {
                             $errors[$field][] = "The {$field} confirmation does not match.";
                         }
+
                         break;
                 }
             }
         }
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             $errorMessage = "Validation failed:\n";
             foreach ($errors as $field => $fieldErrors) {
                 $errorMessage .= "  - {$field}: " . implode(' ', $fieldErrors) . "\n";
             }
+
             throw new \Exception($errorMessage);
         }
 
         return $data;
     }
 }
-

@@ -52,6 +52,7 @@ class AuthController extends Controller
     public function logout(Request $request): Response
     {
         $this->auth->logout();
+
         return $this->redirect('/login');
     }
 
@@ -73,16 +74,15 @@ class AuthController extends Controller
                         'id' => $this->auth->user()->id,
                         'username' => $this->auth->user()->username,
                         'email' => $this->auth->user()->email,
-                    ]
-                ]
+                    ],
+                ],
             ]);
         }
 
         return $this->json([
             'success' => false,
             'message' => 'Invalid credentials',
-            'data' => null
+            'data' => null,
         ], 401);
     }
 }
-

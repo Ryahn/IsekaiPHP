@@ -6,7 +6,7 @@ use IsekaiPHP\Core\Config;
 
 /**
  * Session Manager
- * 
+ *
  * Manages session operations with multiple drivers.
  */
 class SessionManager
@@ -20,7 +20,7 @@ class SessionManager
         $this->config = $config ?: Config::get('session', []);
         $this->driver = $this->config['driver'] ?? 'file';
         $this->handler = $this->createHandler();
-        
+
         $this->start();
     }
 
@@ -112,6 +112,7 @@ class SessionManager
     {
         $value = $this->get('_flash.old.' . $key, $default);
         $this->forget('_flash.old.' . $key);
+
         return $value;
     }
 
@@ -137,7 +138,7 @@ class SessionManager
     {
         $new = [];
         $old = [];
-        
+
         foreach ($_SESSION as $key => $value) {
             if (strpos($key, '_flash.new.') === 0) {
                 $oldKey = str_replace('_flash.new.', '_flash.old.', $key);
@@ -147,7 +148,7 @@ class SessionManager
                 unset($_SESSION[$key]);
             }
         }
-        
+
         $_SESSION = array_merge($_SESSION, $old);
     }
 
@@ -176,4 +177,3 @@ class SessionManager
         return session_id();
     }
 }
-

@@ -6,7 +6,7 @@ use IsekaiPHP\Session\SessionInterface;
 
 /**
  * Cookie Session Driver
- * 
+ *
  * Stores session data in encrypted cookies.
  */
 class CookieSession implements SessionInterface
@@ -53,7 +53,7 @@ class CookieSession implements SessionInterface
     {
         $data = json_encode($_SESSION);
         $encrypted = $this->encrypt($data);
-        
+
         setcookie(
             $this->name,
             $encrypted,
@@ -72,6 +72,7 @@ class CookieSession implements SessionInterface
     {
         $iv = openssl_random_pseudo_bytes(16);
         $encrypted = openssl_encrypt($data, 'AES-256-CBC', $this->encryptionKey, 0, $iv);
+
         return base64_encode($iv . $encrypted);
     }
 
@@ -84,11 +85,10 @@ class CookieSession implements SessionInterface
         if ($data === false) {
             return null;
         }
-        
+
         $iv = substr($data, 0, 16);
         $encrypted = substr($data, 16);
-        
+
         return openssl_decrypt($encrypted, 'AES-256-CBC', $this->encryptionKey, 0, $iv);
     }
 }
-

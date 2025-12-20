@@ -12,9 +12,9 @@ class ModuleInstaller
     public function __construct(string $basePath)
     {
         $this->modulesPath = $basePath . '/modules';
-        
+
         // Ensure modules directory exists
-        if (!is_dir($this->modulesPath)) {
+        if (! is_dir($this->modulesPath)) {
             mkdir($this->modulesPath, 0755, true);
         }
     }
@@ -31,7 +31,7 @@ class ModuleInstaller
     public function installFromGit(string $repoUrl, ?string $branch = null, ?string $moduleName = null): string
     {
         // Validate URL
-        if (!$this->isValidGitUrl($repoUrl)) {
+        if (! $this->isValidGitUrl($repoUrl)) {
             throw new \Exception('Invalid Git repository URL');
         }
 
@@ -48,13 +48,13 @@ class ModuleInstaller
             $this->cloneRepository($repoUrl, $tempPath, $branch);
 
             // Validate the module has module.json
-            if (!file_exists($tempPath . '/module.json')) {
+            if (! file_exists($tempPath . '/module.json')) {
                 throw new \Exception('Module does not contain module.json file');
             }
 
             // Validate module.json structure
             $manifest = json_decode(file_get_contents($tempPath . '/module.json'), true);
-            if (!$manifest || !isset($manifest['name'])) {
+            if (! $manifest || ! isset($manifest['name'])) {
                 throw new \Exception('Invalid module.json file');
             }
 
@@ -81,6 +81,7 @@ class ModuleInstaller
             if (is_dir($tempPath)) {
                 $this->removeDirectory($tempPath);
             }
+
             throw $e;
         }
     }
@@ -95,7 +96,7 @@ class ModuleInstaller
      */
     public function installFromZip(string $zipPath, ?string $moduleName = null): string
     {
-        if (!file_exists($zipPath)) {
+        if (! file_exists($zipPath)) {
             throw new \Exception('ZIP file does not exist');
         }
 
@@ -110,13 +111,13 @@ class ModuleInstaller
             // Try to get module name from ZIP filename
             $zipName = basename($zipPath, '.zip');
             $moduleName = preg_replace('/[^a-z0-9_-]/i', '', $zipName);
-            
+
             // If ZIP has a single root directory, use that name
             if ($zip->numFiles > 0) {
                 $firstEntry = $zip->getNameIndex(0);
                 if ($firstEntry && strpos($firstEntry, '/') !== false) {
                     $rootDir = explode('/', $firstEntry)[0];
-                    if (!empty($rootDir)) {
+                    if (! empty($rootDir)) {
                         $moduleName = $rootDir;
                     }
                 }
@@ -139,7 +140,7 @@ class ModuleInstaller
 
             // If ZIP has a single root directory, adjust path
             $extractedPath = $tempPath;
-            if (!empty($entries)) {
+            if (! empty($entries)) {
                 $firstEntry = $entries[0];
                 if (strpos($firstEntry, '/') !== false) {
                     $rootDir = explode('/', $firstEntry)[0];
@@ -151,13 +152,13 @@ class ModuleInstaller
             }
 
             // Validate the module has module.json
-            if (!file_exists($extractedPath . '/module.json')) {
+            if (! file_exists($extractedPath . '/module.json')) {
                 throw new \Exception('Module does not contain module.json file');
             }
 
             // Validate module.json structure
             $manifest = json_decode(file_get_contents($extractedPath . '/module.json'), true);
-            if (!$manifest || !isset($manifest['name'])) {
+            if (! $manifest || ! isset($manifest['name'])) {
                 throw new \Exception('Invalid module.json file');
             }
 
@@ -186,6 +187,7 @@ class ModuleInstaller
             if (is_dir($tempPath)) {
                 $this->removeDirectory($tempPath);
             }
+
             throw $e;
         }
     }
@@ -198,17 +200,17 @@ class ModuleInstaller
      */
     public function validateModule(string $modulePath): bool
     {
-        if (!is_dir($modulePath)) {
+        if (! is_dir($modulePath)) {
             return false;
         }
 
         $moduleJsonPath = $modulePath . '/module.json';
-        if (!file_exists($moduleJsonPath)) {
+        if (! file_exists($moduleJsonPath)) {
             return false;
         }
 
         $manifest = json_decode(file_get_contents($moduleJsonPath), true);
-        if (!$manifest || !isset($manifest['name'])) {
+        if (! $manifest || ! isset($manifest['name'])) {
             return false;
         }
 
@@ -225,7 +227,7 @@ class ModuleInstaller
     public function installDependencies(string $modulePath): void
     {
         $composerJsonPath = $modulePath . '/composer.json';
-        if (!file_exists($composerJsonPath)) {
+        if (! file_exists($composerJsonPath)) {
             return; // No dependencies to install
         }
 
@@ -238,6 +240,7 @@ class ModuleInstaller
 
         if ($returnVar !== 0) {
             $error = implode("\n", $output);
+
             throw new \Exception('Failed to install module dependencies: ' . $error);
         }
     }
@@ -272,6 +275,7 @@ class ModuleInstaller
 
         if ($returnVar !== 0) {
             $error = implode("\n", $output);
+
             throw new \Exception('Failed to clone repository: ' . $error);
         }
     }
@@ -335,7 +339,7 @@ class ModuleInstaller
      */
     protected function removeDirectory(string $dir): void
     {
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             return;
         }
 
@@ -355,4 +359,3 @@ class ModuleInstaller
         rmdir($dir);
     }
 }
-

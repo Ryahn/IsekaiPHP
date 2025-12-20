@@ -2,17 +2,16 @@
 
 namespace IsekaiPHP\Core;
 
+use IsekaiPHP\Cache\CacheManager;
 use IsekaiPHP\Database\DatabaseManager;
+use IsekaiPHP\Events\EventDispatcher;
 use IsekaiPHP\Http\Request;
 use IsekaiPHP\Http\Response;
 use IsekaiPHP\Http\Router;
-use IsekaiPHP\Core\ModuleManager;
-use IsekaiPHP\Events\EventDispatcher;
-use IsekaiPHP\Cache\CacheManager;
 use IsekaiPHP\Log\Logger;
+use IsekaiPHP\Mail\MailManager;
 use IsekaiPHP\Session\SessionManager;
 use IsekaiPHP\Storage\StorageManager;
-use IsekaiPHP\Mail\MailManager;
 
 class Application
 {
@@ -53,22 +52,27 @@ class Application
         });
         $this->container->singleton(CacheManager::class, function () {
             $config = Config::get('cache', []);
+
             return $this->cache = new CacheManager($config);
         });
         $this->container->singleton(Logger::class, function () {
             $config = Config::get('logging', []);
+
             return $this->logger = new Logger($config);
         });
         $this->container->singleton(SessionManager::class, function () {
             $config = Config::get('session', []);
+
             return $this->session = new SessionManager($config);
         });
         $this->container->singleton(StorageManager::class, function () {
             $config = Config::get('storage', []);
+
             return $this->storage = new StorageManager($config);
         });
         $this->container->singleton(MailManager::class, function () {
             $config = Config::get('mail', []);
+
             return $this->mail = new MailManager($config);
         });
 
@@ -105,10 +109,10 @@ class Application
 
         // Initialize and load modules
         $this->moduleManager = new ModuleManager($this->container, $this->basePath);
-        
+
         // Bind ModuleManager as instance so it can be injected
         $this->container->instance(ModuleManager::class, $this->moduleManager);
-        
+
         $this->moduleManager->discover();
         $this->moduleManager->loadModules();
         $this->moduleManager->loadModuleConfigs();
@@ -268,4 +272,3 @@ class Application
         $response->send();
     }
 }
-

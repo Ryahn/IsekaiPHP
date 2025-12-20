@@ -12,4 +12,3 @@ Capsule::schema()->create('settings', function (Blueprint $table) {
     $table->string('group')->nullable(); // For grouping settings (e.g., 'app', 'mail', 'cache')
     $table->timestamps();
 });
-

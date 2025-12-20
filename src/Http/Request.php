@@ -12,6 +12,7 @@ class Request extends SymfonyRequest
     public static function createFromGlobals(): static
     {
         $request = parent::createFromGlobals();
+
         return new static(
             $request->query->all(),
             $request->request->all(),
@@ -84,7 +85,7 @@ class Request extends SymfonyRequest
      */
     public function hasFile(string $key): bool
     {
-        if (!$this->files->has($key)) {
+        if (! $this->files->has($key)) {
             return false;
         }
 

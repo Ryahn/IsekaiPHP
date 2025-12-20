@@ -79,4 +79,3 @@ class SyslogChannel implements LoggerInterface
         closelog();
     }
 }
-

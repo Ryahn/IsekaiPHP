@@ -4,7 +4,6 @@ namespace IsekaiPHP\Http\Middleware;
 
 use IsekaiPHP\Http\Request;
 use IsekaiPHP\Http\Response;
-use IsekaiPHP\Core\Config;
 
 class CSRFMiddleware
 {
@@ -36,10 +35,11 @@ class CSRFMiddleware
         $token = $request->input(self::TOKEN_KEY) ?: $request->headers->get('X-CSRF-TOKEN');
 
         // Validate token
-        if (!$token || !$this->validateToken($token)) {
+        if (! $token || ! $this->validateToken($token)) {
             if ($request->expectsJson()) {
                 return Response::json(['error' => 'CSRF token mismatch'], 419);
             }
+
             return new Response('CSRF token mismatch', 419);
         }
 
@@ -52,6 +52,7 @@ class CSRFMiddleware
     protected function validateToken(string $token): bool
     {
         $sessionToken = $_SESSION['_csrf_token'] ?? null;
+
         return hash_equals($sessionToken, $token);
     }
 
@@ -64,7 +65,7 @@ class CSRFMiddleware
             session_start();
         }
 
-        if (!isset($_SESSION['_csrf_token'])) {
+        if (! isset($_SESSION['_csrf_token'])) {
             $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
         }
 

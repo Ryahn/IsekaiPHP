@@ -17,7 +17,7 @@ class FileSession implements SessionInterface
         $this->path = $config['path'] ?? sys_get_temp_dir() . '/sessions';
         $this->lifetime = $config['lifetime'] ?? 7200; // 2 hours
 
-        if (!is_dir($this->path)) {
+        if (! is_dir($this->path)) {
             mkdir($this->path, 0755, true);
         }
 
@@ -35,4 +35,3 @@ class FileSession implements SessionInterface
         }
     }
 }
-

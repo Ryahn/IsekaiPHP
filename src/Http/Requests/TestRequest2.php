@@ -32,4 +32,3 @@ class TestRequest2 extends FormRequest
         ];
     }
 }
-

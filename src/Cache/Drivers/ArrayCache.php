@@ -6,7 +6,7 @@ use IsekaiPHP\Cache\CacheInterface;
 
 /**
  * Array Cache Driver
- * 
+ *
  * In-memory cache for testing or single-request scenarios.
  */
 class ArrayCache implements CacheInterface
@@ -24,7 +24,7 @@ class ArrayCache implements CacheInterface
      */
     public function get(string $key, $default = null)
     {
-        if (!$this->has($key)) {
+        if (! $this->has($key)) {
             return $default;
         }
 
@@ -86,17 +86,17 @@ class ArrayCache implements CacheInterface
      */
     public function has(string $key): bool
     {
-        if (!isset($this->cache[$key])) {
+        if (! isset($this->cache[$key])) {
             return false;
         }
 
         // Check if expired
         if (isset($this->expires[$key]) && $this->expires[$key] < time()) {
             $this->forget($key);
+
             return false;
         }
 
         return true;
     }
 }
-

@@ -20,10 +20,11 @@ class AuthMiddleware
      */
     public function handle(Request $request, \Closure $next): Response
     {
-        if (!$this->auth->check()) {
+        if (! $this->auth->check()) {
             if ($request->expectsJson()) {
                 return Response::json(['error' => 'Unauthorized'], 401);
             }
+
             return Response::redirect('/login');
         }
 

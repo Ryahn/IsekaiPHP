@@ -6,7 +6,7 @@ use IsekaiPHP\Core\Config;
 
 /**
  * Cache Facade
- * 
+ *
  * Static facade for easy cache access.
  */
 class Cache
@@ -82,4 +82,3 @@ class Cache
         return self::manager()->has($key);
     }
 }
-

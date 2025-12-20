@@ -4,7 +4,7 @@ namespace IsekaiPHP\Events;
 
 /**
  * Event Dispatcher
- * 
+ *
  * Handles event publishing and listener registration.
  */
 class EventDispatcher
@@ -46,7 +46,7 @@ class EventDispatcher
         $responses = [];
 
         // Convert payload to Event instance if it's an array
-        if (is_array($payload) && !($payload instanceof Event)) {
+        if (is_array($payload) && ! ($payload instanceof Event)) {
             $payload = new Event($payload);
         }
 
@@ -55,13 +55,13 @@ class EventDispatcher
 
         foreach ($listeners as $listener) {
             $response = $this->callListener($listener, $event, $payload);
-            
+
             if ($response !== null) {
                 $responses[] = $response;
             }
         }
 
-        return !empty($responses) ? $responses : null;
+        return ! empty($responses) ? $responses : null;
     }
 
     /**
@@ -88,6 +88,7 @@ class EventDispatcher
     {
         // Convert wildcard pattern to regex
         $regex = str_replace(['\\*', '\\?'], ['.*', '.'], preg_quote($pattern, '/'));
+
         return preg_match('/^' . $regex . '$/', $event) === 1;
     }
 
@@ -119,7 +120,7 @@ class EventDispatcher
             $method = 'handle';
         }
 
-        if (!class_exists($class)) {
+        if (! class_exists($class)) {
             return null;
         }
 
@@ -180,4 +181,3 @@ class EventDispatcher
         return false;
     }
 }
-

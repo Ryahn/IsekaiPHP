@@ -12,4 +12,3 @@ interface MailInterface
      */
     public function send(string $to, string $subject, string $message, array $options = []): bool;
 }
-

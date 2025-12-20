@@ -4,11 +4,10 @@ namespace IsekaiPHP\Log;
 
 use Psr\Log\LoggerInterface;
 use Psr\Log\LoggerTrait;
-use Psr\Log\LogLevel;
 
 /**
  * Logger
- * 
+ *
  * PSR-3 compatible logger with multiple channels.
  */
 class Logger implements LoggerInterface
@@ -35,14 +34,14 @@ class Logger implements LoggerInterface
 
         foreach ($channels as $name => $channelConfig) {
             $driver = $channelConfig['driver'] ?? 'file';
-            
+
             // Resolve relative paths to absolute paths
             if (isset($channelConfig['path']) && function_exists('base_path')) {
                 $path = $channelConfig['path'];
                 // If path is relative (starts with ../), resolve it
                 if (strpos($path, '../') === 0 || strpos($path, './') === 0) {
                     $channelConfig['path'] = realpath($path) ?: $path;
-                } elseif (!file_exists($path) && function_exists('base_path')) {
+                } elseif (! file_exists($path) && function_exists('base_path')) {
                     // Try to resolve relative to base path
                     $resolved = base_path($path);
                     if (file_exists(dirname($resolved)) || is_dir(dirname($resolved))) {
@@ -50,7 +49,7 @@ class Logger implements LoggerInterface
                     }
                 }
             }
-            
+
             $this->channels[$name] = $this->createChannel($driver, $channelConfig);
         }
     }
@@ -73,7 +72,7 @@ class Logger implements LoggerInterface
      */
     public function channel(string $channel): LoggerInterface
     {
-        if (!isset($this->channels[$channel])) {
+        if (! isset($this->channels[$channel])) {
             $this->channels[$channel] = $this->createChannel('file', []);
         }
 
@@ -86,10 +85,9 @@ class Logger implements LoggerInterface
     public function log($level, string|\Stringable $message, array $context = []): void
     {
         $channel = $this->channels[$this->defaultChannel] ?? $this->channels['file'] ?? null;
-        
+
         if ($channel) {
             $channel->log($level, $message, $context);
         }
     }
 }
-

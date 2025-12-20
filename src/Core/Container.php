@@ -55,7 +55,7 @@ class Container
         // If concrete is different from abstract, we have a binding
         // If it's a closure, build will handle it
         // If it's the same class, we need to auto-resolve
-        
+
         // Resolve the concrete class
         $object = $this->build($concrete, $parameters);
 
@@ -79,7 +79,7 @@ class Container
 
         return $abstract;
     }
-    
+
     /**
      * Check if a binding exists
      */
@@ -98,32 +98,36 @@ class Container
             // Check if closure accepts parameters
             $reflection = new \ReflectionFunction($concrete);
             $closureParams = $reflection->getParameters();
-            
+
             // If closure accepts parameters, pass container and/or provided parameters
             if (count($closureParams) > 0) {
                 $closureParamName = $closureParams[0]->getName();
                 // If first param is 'container' or type-hinted as Container, pass container
-                if ($closureParamName === 'container' || 
-                    ($closureParams[0]->hasType() && $closureParams[0]->getType()->getName() === Container::class)) {
+                if (
+                    $closureParamName === 'container'
+                    || ($closureParams[0]->hasType()
+                        && $closureParams[0]->getType()->getName() === Container::class)
+                ) {
                     return $concrete($this, ...$parameters);
                 }
+
                 // Otherwise, pass provided parameters
                 return $concrete(...$parameters);
             }
-            
+
             // If no parameters needed, call without args
             return $concrete();
         }
 
         // If we got here, concrete is a class name string
         // Use reflection to instantiate
-        if (!class_exists($concrete)) {
+        if (! class_exists($concrete)) {
             throw new \Exception("Class {$concrete} does not exist");
         }
-        
+
         $reflector = new \ReflectionClass($concrete);
 
-        if (!$reflector->isInstantiable()) {
+        if (! $reflector->isInstantiable()) {
             throw new \Exception("Class {$concrete} is not instantiable");
         }
 
@@ -152,25 +156,29 @@ class Container
             if (isset($parameters[$paramIndex])) {
                 $results[] = $parameters[$paramIndex];
                 $paramIndex++;
+
                 continue;
             }
 
             // Check for named parameter
             if (isset($parameters[$dependency->getName()])) {
                 $results[] = $parameters[$dependency->getName()];
+
                 continue;
             }
 
             // Try to resolve from container
             $class = $dependency->getType();
-            if ($class && !$class->isBuiltin()) {
+            if ($class && ! $class->isBuiltin()) {
                 $results[] = $this->make($class->getName());
+
                 continue;
             }
 
             // Use default value if available
             if ($dependency->isDefaultValueAvailable()) {
                 $results[] = $dependency->getDefaultValue();
+
                 continue;
             }
 
@@ -188,4 +196,3 @@ class Container
         return isset($this->bindings[$abstract]) || isset($this->instances[$abstract]);
     }
 }
-

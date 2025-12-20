@@ -4,7 +4,6 @@ namespace IsekaiPHP\Log\Channels;
 
 use Psr\Log\LoggerInterface;
 use Psr\Log\LoggerTrait;
-use Psr\Log\LogLevel;
 
 /**
  * File Log Channel
@@ -19,7 +18,7 @@ class FileChannel implements LoggerInterface
     public function __construct(array $config = [])
     {
         $defaultPath = sys_get_temp_dir() . '/isekaiphp.log';
-        
+
         // Resolve storage_path() if it's a function call string
         if (isset($config['path'])) {
             $path = $config['path'];
@@ -37,12 +36,12 @@ class FileChannel implements LoggerInterface
         } else {
             $this->path = $defaultPath;
         }
-        
+
         $this->permission = $config['permission'] ?? 0644;
 
         // Ensure directory exists
         $dir = dirname($this->path);
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
     }
@@ -79,4 +78,3 @@ class FileChannel implements LoggerInterface
         return strtr($message, $replace);
     }
 }
-

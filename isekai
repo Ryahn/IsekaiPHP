@@ -54,7 +54,11 @@ if ($argc < 2) {
     echo "  module:install-all               - Install dependencies for all modules\n";
     echo "  module:publish <name> [--force]  - Publish module assets to public directory\n";
     echo "  module:publish-all [--force]     - Publish assets for all modules\n\n";
-    echo "  cache:clear                     - Clear application cache\n";
+    echo "  cache:clear                     - Clear all application cache\n";
+    echo "  cache:clear:config              - Clear configuration cache\n";
+    echo "  cache:clear:routes              - Clear route cache\n";
+    echo "  cache:clear:views               - Clear compiled view cache\n";
+    echo "  cache:config                    - Cache configuration files\n";
     echo "  route:list                      - List all registered routes\n";
     exit(1);
 }
@@ -1211,16 +1215,165 @@ PHP;
         echo "Available commands: module:make, module:list, module:enable, module:disable, module:install, module:install-all, module:publish, module:publish-all\n";
         exit(1);
     }
-} elseif ($command === 'cache:clear') {
+} elseif (strpos($command, 'cache:') === 0) {
+    // Cache command handler
     bootstrapApp();
     
-    $cacheConfig = Config::get('cache', []);
-    $cacheManager = new \IsekaiPHP\Cache\CacheManager($cacheConfig);
+    $parts = explode(':', $command);
+    $cacheCommand = $parts[1] ?? null;
+    $cacheSubCommand = $parts[2] ?? null;
     
-    if ($cacheManager->flush()) {
-        echo "✓ Cache cleared successfully.\n";
+    $basePath = __DIR__;
+    $configCachePath = storage_path('cache/config.php');
+    $routeCachePath = storage_path('cache/routes.php');
+    $viewCachePath = storage_path('cache/views');
+    
+    if ($command === 'cache:clear') {
+        // Clear all cache
+        $cacheConfig = Config::get('cache', []);
+        $cacheManager = new \IsekaiPHP\Cache\CacheManager($cacheConfig);
+        
+        $cleared = [];
+        
+        // Clear application cache
+        if ($cacheManager->flush()) {
+            $cleared[] = 'application cache';
+        }
+        
+        // Clear config cache
+        if (file_exists($configCachePath)) {
+            if (unlink($configCachePath)) {
+                $cleared[] = 'configuration cache';
+            }
+        }
+        
+        // Clear route cache
+        if (file_exists($routeCachePath)) {
+            if (unlink($routeCachePath)) {
+                $cleared[] = 'route cache';
+            }
+        }
+        
+        // Clear view cache (recursively)
+        if (is_dir($viewCachePath)) {
+            $files = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($viewCachePath, \RecursiveDirectoryIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST
+            );
+            $viewCount = 0;
+            foreach ($files as $file) {
+                if ($file->isFile()) {
+                    if (unlink($file->getRealPath())) {
+                        $viewCount++;
+                    }
+                }
+            }
+            if ($viewCount > 0) {
+                $cleared[] = "view cache ({$viewCount} files)";
+            }
+        }
+        
+        if (!empty($cleared)) {
+            echo "✓ Cleared: " . implode(', ', $cleared) . "\n";
+        } else {
+            echo "✓ No cache to clear.\n";
+        }
+        
+    } elseif ($command === 'cache:clear:config') {
+        // Clear config cache only
+        if (file_exists($configCachePath)) {
+            if (unlink($configCachePath)) {
+                echo "✓ Configuration cache cleared.\n";
+            } else {
+                echo "Error: Failed to clear configuration cache.\n";
+                exit(1);
+            }
+        } else {
+            echo "✓ Configuration cache is already clear.\n";
+        }
+        
+    } elseif ($command === 'cache:clear:routes') {
+        // Clear route cache only
+        if (file_exists($routeCachePath)) {
+            if (unlink($routeCachePath)) {
+                echo "✓ Route cache cleared.\n";
+            } else {
+                echo "Error: Failed to clear route cache.\n";
+                exit(1);
+            }
+        } else {
+            echo "✓ Route cache is already clear.\n";
+        }
+        
+    } elseif ($command === 'cache:clear:views') {
+        // Clear view cache only (recursively)
+        if (is_dir($viewCachePath)) {
+            $files = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($viewCachePath, \RecursiveDirectoryIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST
+            );
+            $count = 0;
+            foreach ($files as $file) {
+                if ($file->isFile()) {
+                    if (unlink($file->getRealPath())) {
+                        $count++;
+                    }
+                }
+            }
+            if ($count > 0) {
+                echo "✓ Cleared {$count} compiled view file(s).\n";
+            } else {
+                echo "✓ View cache is already clear.\n";
+            }
+        } else {
+            echo "✓ View cache is already clear.\n";
+        }
+        
+    } elseif ($command === 'cache:config') {
+        // Cache configuration files
+        $configPath = $basePath . '/config';
+        
+        if (!is_dir($configPath)) {
+            echo "Error: Config directory not found.\n";
+            exit(1);
+        }
+        
+        // Load all config files
+        Config::load($basePath);
+        
+        // Get all config
+        $configFiles = glob($configPath . '/*.php');
+        $configData = [];
+        
+        foreach ($configFiles as $file) {
+            $key = basename($file, '.php');
+            $configData[$key] = require $file;
+        }
+        
+        // Ensure cache directory exists
+        $cacheDir = dirname($configCachePath);
+        if (!is_dir($cacheDir)) {
+            mkdir($cacheDir, 0755, true);
+        }
+        
+        // Write cached config
+        $cacheContent = "<?php\n\nreturn " . var_export($configData, true) . ";\n";
+        
+        if (file_put_contents($configCachePath, $cacheContent)) {
+            echo "✓ Configuration cached successfully.\n";
+        } else {
+            echo "Error: Failed to cache configuration.\n";
+            exit(1);
+        }
+        
     } else {
-        echo "Error: Failed to clear cache.\n";
+        echo "Error: Unknown cache command: {$command}\n";
+        echo "Available commands:\n";
+        echo "  cache:clear          - Clear all cache\n";
+        echo "  cache:clear:config   - Clear configuration cache\n";
+        echo "  cache:clear:routes   - Clear route cache\n";
+        echo "  cache:clear:views    - Clear compiled view cache\n";
+        echo "  cache:config         - Cache configuration files\n";
         exit(1);
     }
 } elseif ($command === 'route:list') {

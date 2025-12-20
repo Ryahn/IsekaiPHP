@@ -94,7 +94,7 @@ class Router
         $this->prefix = $previousPrefix;
         $this->groupMiddleware = $previousMiddleware;
     }
-    
+
     /**
      * Get router instance (for use in route files)
      */
@@ -110,26 +110,29 @@ class Router
     {
         $method = $request->getMethod();
         $uri = $request->getPathInfo();
-        
+
         // Normalize URI (remove trailing slash except for root)
         $normalizedUri = $uri !== '/' ? rtrim($uri, '/') : $uri;
 
         // Try to find exact match first (with and without trailing slash)
         if (isset($this->routes[$method][$uri])) {
             $route = $this->routes[$method][$uri];
+
             return $this->runRoute($route, $request);
         }
-        
+
         // Try normalized version
         if (isset($this->routes[$method][$normalizedUri])) {
             $route = $this->routes[$method][$normalizedUri];
+
             return $this->runRoute($route, $request);
         }
-        
+
         // Try with trailing slash
         $uriWithSlash = $normalizedUri . '/';
         if (isset($this->routes[$method][$uriWithSlash])) {
             $route = $this->routes[$method][$uriWithSlash];
+
             return $this->runRoute($route, $request);
         }
 
@@ -138,6 +141,7 @@ class Router
             $params = [];
             if ($route->matches($uri, $params) || $route->matches($normalizedUri, $params)) {
                 $request->attributes->add($params);
+
                 return $this->runRoute($route, $request);
             }
         }
@@ -202,6 +206,7 @@ class Router
             $params = $request->attributes->all();
             // Remove non-route params
             unset($params['_route'], $params['_controller']);
+
             // Pass request and parameters to closure
             return call_user_func_array($action, array_merge([$request], array_values($params)));
         }
@@ -209,17 +214,20 @@ class Router
         if (is_string($action) && strpos($action, '@') !== false) {
             [$controller, $method] = explode('@', $action);
             $controller = $this->container->make($controller);
+
             return $controller->$method($request);
         }
 
         if (is_string($action)) {
             $controller = $this->container->make($action);
+
             return $controller($request);
         }
 
         if (is_array($action)) {
             [$controller, $method] = $action;
             $controller = $this->container->make($controller);
+
             return $controller->$method($request);
         }
 

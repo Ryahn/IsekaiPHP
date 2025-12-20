@@ -6,7 +6,7 @@ use IsekaiPHP\Http\Request;
 
 /**
  * Validator
- * 
+ *
  * Validates request data against rules.
  */
 class Validator
@@ -63,7 +63,7 @@ class Validator
      */
     public function fails(): bool
     {
-        return !empty($this->errors);
+        return ! empty($this->errors);
     }
 
     /**
@@ -99,7 +99,7 @@ class Validator
         $value = $this->data;
 
         foreach ($keys as $key) {
-            if (!isset($value[$key])) {
+            if (! isset($value[$key])) {
                 return null;
             }
             $value = $value[$key];
@@ -120,7 +120,7 @@ class Validator
         $method = 'validate' . str_replace(' ', '', ucwords(str_replace('_', ' ', $ruleName)));
 
         if (method_exists($this, $method)) {
-            if (!$this->$method($field, $value, $parameters)) {
+            if (! $this->$method($field, $value, $parameters)) {
                 $this->addError($field, $ruleName, $parameters);
             }
         }
@@ -319,7 +319,7 @@ class Validator
         $except = $parameters[2] ?? null;
         $idColumn = $parameters[3] ?? 'id';
 
-        if (!$table) {
+        if (! $table) {
             return false;
         }
 
@@ -349,7 +349,7 @@ class Validator
         $table = $parameters[0] ?? null;
         $column = $parameters[1] ?? $field;
 
-        if (!$table) {
+        if (! $table) {
             return false;
         }
 
@@ -377,7 +377,7 @@ class Validator
             return true;
         }
 
-        return !in_array($value, $parameters);
+        return ! in_array($value, $parameters);
     }
 
     protected function validateRegex(string $field, $value, array $parameters): bool
@@ -393,4 +393,3 @@ class Validator
         return preg_match($parameters[0], $value) === 1;
     }
 }
-

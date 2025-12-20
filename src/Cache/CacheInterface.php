@@ -37,4 +37,3 @@ interface CacheInterface
      */
     public function has(string $key): bool;
 }
-

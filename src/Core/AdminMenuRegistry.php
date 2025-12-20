@@ -12,18 +12,19 @@ class AdminMenuRegistry
     /**
      * Register a menu item
      *
-     * @param array $item Menu item with keys: label, url, icon (optional), order (optional), children (optional), permission (optional)
+     * @param array $item Menu item with keys: label, url, icon (optional),
+     *                   order (optional), children (optional), permission (optional)
      * @return void
      */
     public static function registerMenuItem(array $item): void
     {
         // Ensure required fields
-        if (!isset($item['label']) || !isset($item['url'])) {
+        if (! isset($item['label']) || ! isset($item['url'])) {
             throw new \InvalidArgumentException('Menu item must have label and url');
         }
 
         // Set default order if not provided
-        if (!isset($item['order'])) {
+        if (! isset($item['order'])) {
             $item['order'] = 100;
         }
 
@@ -59,6 +60,7 @@ class AdminMenuRegistry
                 if (isset($item['permission'])) {
                     return call_user_func($permissionChecker, $item['permission']);
                 }
+
                 return true;
             });
 
@@ -69,6 +71,7 @@ class AdminMenuRegistry
                         if (isset($child['permission'])) {
                             return call_user_func($permissionChecker, $child['permission']);
                         }
+
                         return true;
                     });
                 }
@@ -93,4 +96,3 @@ class AdminMenuRegistry
         static::$menuItems = [];
     }
 }
-

@@ -2,9 +2,9 @@
 
 namespace IsekaiPHP\Database;
 
+use Illuminate\Container\Container;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Events\Dispatcher;
-use Illuminate\Container\Container;
 
 class DatabaseManager
 {

@@ -10,10 +10,51 @@
                 <h3>Application Settings</h3>
             </div>
             <div class="card-body">
+                @if(isset($error))
+                    <div class="alert alert-danger">
+                        <strong>Error loading settings:</strong> {{ $error }}
+                    </div>
+                @endif
+                
+                @php
+                    $settingsCount = is_array($settings) ? count($settings) : 0;
+                    $configGroupsCount = is_array($configGroups ?? null) ? count($configGroups) : 0;
+                    $dbSettingsCount = is_array($dbSettings ?? null) ? count($dbSettings) : 0;
+                    $settingsKeys = is_array($settings) ? implode(', ', array_keys($settings)) : 'not an array';
+                @endphp
+                
+                @if(empty($settings) || $settingsCount === 0)
+                    <div class="alert alert-info">
+                        <p><strong>No settings found.</strong></p>
+                        <p>Settings from config files will appear here once saved to the database.</p>
+                        <p><strong>Debug Info:</strong></p>
+                        <ul>
+                            <li>Settings count: {{ $settingsCount }}</li>
+                            <li>Settings type: {{ gettype($settings ?? null) }}</li>
+                            <li>Settings keys: {{ $settingsKeys }}</li>
+                            <li>Config groups count: {{ $configGroupsCount }}</li>
+                            <li>DB settings count: {{ $dbSettingsCount }}</li>
+                        </ul>
+                    </div>
+                @endif
+                
                 <form method="POST" action="/admin/settings">
                     @csrf
                     
+                    @php
+                        // Debug: Log what we have
+                        error_log('View: settings type = ' . gettype($settings ?? null));
+                        error_log('View: settings count = ' . (is_array($settings) ? count($settings) : 'N/A'));
+                        if (is_array($settings)) {
+                            error_log('View: settings keys = ' . implode(', ', array_keys($settings)));
+                        }
+                    @endphp
+                    
+                    @if(!empty($settings) && is_array($settings) && count($settings) > 0)
                     @foreach($settings as $group => $groupSettings)
+                        @php
+                            error_log("View: Processing group '{$group}' with " . count($groupSettings ?? []) . ' settings');
+                        @endphp
                         <div class="settings-group mb-4">
                             <h4 class="mb-3">{{ ucfirst($group) }} Settings</h4>
                             
@@ -68,6 +109,7 @@
                         </div>
                         <hr>
                     @endforeach
+                    @endif
                     
                     <div class="form-group">
                         <button type="submit" class="btn btn-primary">Save Settings</button>

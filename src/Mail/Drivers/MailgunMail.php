@@ -6,7 +6,7 @@ use IsekaiPHP\Mail\MailInterface;
 
 /**
  * Mailgun Mail Driver
- * 
+ *
  * Requires Mailgun PHP SDK.
  */
 class MailgunMail implements MailInterface
@@ -28,4 +28,3 @@ class MailgunMail implements MailInterface
         return false;
     }
 }
-

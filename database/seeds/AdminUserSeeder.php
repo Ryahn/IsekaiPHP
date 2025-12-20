@@ -2,8 +2,8 @@
 
 namespace Database\Seeds;
 
-use IsekaiPHP\Models\User;
 use Illuminate\Support\Facades\Hash;
+use IsekaiPHP\Models\User;
 
 class AdminUserSeeder
 {
@@ -21,4 +21,3 @@ class AdminUserSeeder
         ]);
     }
 }
-

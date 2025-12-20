@@ -6,7 +6,7 @@ use IsekaiPHP\Storage\StorageInterface;
 
 /**
  * S3-Compatible Storage Driver
- * 
+ *
  * Requires AWS SDK or compatible S3 library.
  */
 class S3Storage implements StorageInterface
@@ -95,8 +95,7 @@ class S3Storage implements StorageInterface
         $bucket = $this->config['bucket'] ?? '';
         $region = $this->config['region'] ?? 'us-east-1';
         $path = ltrim($path, '/');
-        
+
         return "https://{$bucket}.s3.{$region}.amazonaws.com/{$path}";
     }
 }
-

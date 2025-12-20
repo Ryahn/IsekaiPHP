@@ -52,4 +52,3 @@ class Event
         return isset($this->data[$key]);
     }
 }
-

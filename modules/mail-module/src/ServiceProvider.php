@@ -2,8 +2,8 @@
 
 namespace MailModule;
 
-use IsekaiPHP\Core\ServiceProvider as BaseServiceProvider;
 use IsekaiPHP\Core\Container;
+use IsekaiPHP\Core\ServiceProvider as BaseServiceProvider;
 
 class ServiceProvider implements BaseServiceProvider
 {

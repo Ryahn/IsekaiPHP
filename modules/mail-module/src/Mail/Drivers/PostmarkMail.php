@@ -6,7 +6,7 @@ use IsekaiPHP\Mail\MailInterface;
 
 /**
  * Postmark Mail Driver
- * 
+ *
  * Example custom mail driver for a module.
  */
 class PostmarkMail implements MailInterface
@@ -25,7 +25,7 @@ class PostmarkMail implements MailInterface
     {
         $apiKey = $this->config['api_key'] ?? '';
         $serverToken = $this->config['server_token'] ?? '';
-        
+
         if (empty($serverToken)) {
             return false;
         }
@@ -45,7 +45,7 @@ class PostmarkMail implements MailInterface
 
         // In a real implementation, you would make an HTTP request to Postmark API
         // $response = $this->makeApiRequest('https://api.postmarkapp.com/email', $data, $serverToken);
-        
+
         return true; // Placeholder
     }
 
@@ -74,4 +74,3 @@ class PostmarkMail implements MailInterface
         ];
     }
 }
-

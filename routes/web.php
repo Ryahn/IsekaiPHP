@@ -1,8 +1,7 @@
 <?php
 
-use IsekaiPHP\Http\Middleware\AuthMiddleware;
-use IsekaiPHP\Http\Controllers\HomeController;
 use IsekaiPHP\Http\Controllers\AuthController;
+use IsekaiPHP\Http\Controllers\HomeController;
 
 /** @var \IsekaiPHP\Http\Router $router */
 $router = $GLOBALS['app']->getRouter();

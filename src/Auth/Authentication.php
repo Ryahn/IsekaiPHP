@@ -2,8 +2,8 @@
 
 namespace IsekaiPHP\Auth;
 
-use IsekaiPHP\Models\User;
 use IsekaiPHP\Http\Request;
+use IsekaiPHP\Models\User;
 
 class Authentication
 {
@@ -28,11 +28,12 @@ class Authentication
 
         $user = User::where('username', $username)->orWhere('email', $username)->first();
 
-        if (!$user || !password_verify($password, $user->password)) {
+        if (! $user || ! password_verify($password, $user->password)) {
             return false;
         }
 
         $this->login($user, $remember);
+
         return true;
     }
 
@@ -79,6 +80,7 @@ class Authentication
     public function check(): bool
     {
         $this->startSession();
+
         return isset($_SESSION[self::SESSION_KEY]);
     }
 
@@ -87,7 +89,7 @@ class Authentication
      */
     public function user(): ?User
     {
-        if (!$this->check()) {
+        if (! $this->check()) {
             return null;
         }
 
@@ -100,6 +102,7 @@ class Authentication
     public function id(): ?int
     {
         $this->startSession();
+
         return $_SESSION[self::SESSION_KEY] ?? null;
     }
 

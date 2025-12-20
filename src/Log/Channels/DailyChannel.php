@@ -7,7 +7,7 @@ use Psr\Log\LoggerTrait;
 
 /**
  * Daily Log Channel
- * 
+ *
  * Creates a new log file each day.
  */
 class DailyChannel implements LoggerInterface
@@ -25,7 +25,7 @@ class DailyChannel implements LoggerInterface
         $this->days = $config['days'] ?? 7;
         $this->permission = $config['permission'] ?? 0644;
 
-        if (!is_dir($this->path)) {
+        if (! is_dir($this->path)) {
             mkdir($this->path, 0755, true);
         }
     }
@@ -36,6 +36,7 @@ class DailyChannel implements LoggerInterface
     protected function getLogFile(): string
     {
         $date = date('Y-m-d');
+
         return $this->path . '/isekaiphp-' . $date . '.log';
     }
 
@@ -90,4 +91,3 @@ class DailyChannel implements LoggerInterface
         }
     }
 }
-

@@ -8,7 +8,7 @@ use IsekaiPHP\Http\Validation\Validator;
 
 /**
  * Form Request
- * 
+ *
  * Base class for form validation requests.
  */
 abstract class FormRequest extends Request
@@ -57,7 +57,7 @@ abstract class FormRequest extends Request
      */
     public function validate(): bool
     {
-        if (!$this->authorize()) {
+        if (! $this->authorize()) {
             return false;
         }
 
@@ -110,4 +110,3 @@ abstract class FormRequest extends Request
         return $data;
     }
 }
-

@@ -6,7 +6,7 @@ use IsekaiPHP\Mail\MailInterface;
 
 /**
  * SendGrid Mail Driver
- * 
+ *
  * Requires SendGrid PHP SDK.
  */
 class SendgridMail implements MailInterface
@@ -28,4 +28,3 @@ class SendgridMail implements MailInterface
         return false;
     }
 }
-
